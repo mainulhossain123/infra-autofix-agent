@@ -1,430 +1,289 @@
-# 🤖 Auto-Remediation Platform# 🤖 Auto-Remediation Platform# 🤖 Auto-Remediation Platform
-
-
-
-> **Automated infrastructure monitoring and remediation** - Detects application failures and triggers recovery actions automatically.
-
-
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)> **Automated infrastructure remediation bot** that detects application failures and triggers recovery actions automatically.> **Production-grade infrastructure auto-remediation bot** that detects application failures, triggers automated recovery actions, and sends real-time incident notifications — eliminating toil and reducing MTTR.
-
-[![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
-
-[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
-
-
-
----[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-
-
-## 🎯 Overview[![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)[![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
-
-
-
-A **full-stack SRE automation platform** that monitors applications, detects failures, and automatically remediates them. Built to demonstrate production-grade incident response automation.[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)[![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://www.docker.com/)
-
-
-
-**What it does:**
-
-- Monitors application health every 5 seconds
-
-- Detects crashes, CPU spikes, high error rates, slow responses------
-
-- Automatically restarts containers or escalates critical issues
-
-- Prevents restart loops with circuit breaker
-
-- Tracks all incidents and remediation actions in PostgreSQL
-
-- Displays real-time metrics via React dashboard## 🎯 What Is This?## 📋 Table of Contents
-
-
-
----
-
-
-
-## ✨ FeaturesAn **end-to-end SRE automation platform** that monitors applications, detects incidents (crashes, CPU spikes, high error rates), and automatically remediates them (restarts containers, scales resources). Includes:- [Overview](#overview)
-
-
-
-### **Incident Detection** (4 detectors)- [Features](#features)
-
-✅ **Health Check Failures** - Detects when app is unreachable  
-
-✅ **High Error Rate** - Triggers when >20% of requests fail  - 🔧 **Flask REST API** - Backend with simulated failure modes- [Architecture](#architecture)
-
-✅ **CPU Spikes** - Detects when CPU >80%  
-
-✅ **High Response Times** - Detects slow API responses- 🤖 **Monitoring Bot** - Detects incidents via health checks- [Tech Stack](#tech-stack)
-
-
-
-### **Automated Remediation**- ⚡ **Auto-Remediation** - Executes recovery actions automatically- [Quick Start](#quick-start)
-
-✅ **Container Restarts** - Auto-restarts crashed applications  
-
-✅ **Circuit Breaker** - Prevents infinite restart loops (max 3 restarts per 5 minutes)  - 🛡️ **Circuit Breaker** - Prevents infinite restart loops- [API Documentation](#api-documentation)
-
-✅ **Cooldown Periods** - 120-second delay between actions  
-
-✅ **Manual Triggers** - API endpoints to trigger remediation manually  - 📊 **React Dashboard** - Real-time metrics and incident tracking- [Demo Scenarios](#demo-scenarios)
-
-✅ **Slack Notifications** - Sends alerts for incidents (optional)
-
-- 💾 **PostgreSQL** - Persistent incident/action history- [Configuration](#configuration)
-
-### **Real-Time Monitoring**
-
-✅ **WebSocket Streaming** - Metrics pushed every 2 seconds  - [Development](#development)
-
-✅ **React Dashboard** - 5 pages with real-time charts  
-
-✅ **Database Health** - PostgreSQL connection pool & cache monitoring  ---- [Roadmap](#roadmap)
-
-✅ **Prometheus Metrics** - `/metrics` endpoint for scraping
-
-- [Contributing](#contributing)
-
-### **Data Persistence**
-
-✅ **Incident Logging** - All incidents saved with timestamps  ## ✨ Features- [License](#license)
-
-✅ **Remediation History** - Track all automated and manual actions  
-
-✅ **Auto-Cleanup** - Deletes logs older than 6 months (configurable)
-
-
-
----**Incident Detection:**---
-
-
-
-## 🛠️ Tech Stack- Health check failures
-
-
-
-| Component | Technology |- High error rates (>20%)## 🎯 Overview
-
-|-----------|-----------|
-
-| **Backend API** | Python 3.11, Flask 3.0, Flask-SocketIO |- CPU spikes (>80%)
-
-| **Database** | PostgreSQL 15, SQLAlchemy |
-
-| **Frontend** | React 18, Vite, Tailwind CSS, Recharts |- High response timesThe Auto-Remediation Platform is a **full-stack application** that demonstrates production-grade SRE practices for automated incident response. It consists of:
-
-| **Real-Time** | WebSocket (Socket.IO) |
-
-| **Monitoring** | Prometheus, psutil |
-
-| **Container** | Docker Compose (5 services) |
-
-| **Web Server** | Nginx |**Automated Recovery:**1. **Flask REST API** - Simulates a web service with realistic failure modes
-
-
-
----- Container restarts2. **Monitoring Bot** - Detects incidents using health checks and metrics
-
-
-
-## 🚀 Quick Start- Circuit breaker protection3. **Remediation Engine** - Executes automated recovery actions (restart, scale, heal)
-
-
-
-### Prerequisites- Cooldown periods4. **Circuit Breaker** - Prevents remediation flapping and restart loops
-
-- Docker Desktop running
-
-- Git- Slack notifications5. **Notification System** - Alerts via Slack, console, or PagerDuty
-
-- (Optional) Slack webhook URL
-
-6. **PostgreSQL Database** - Persists incidents, actions, and metrics
-
-### 1. Clone Repository
-
-```bash**Real-Time Monitoring:**7. **Prometheus Metrics** - Exports metrics for observability
-
-git clone https://github.com/mainulhossain123/infra-autofix-agent.git
-
-cd infra-autofix-agent- WebSocket metric streaming (2s updates)
-
-```
-
-- React dashboard with charts### 🎓 **Why This Project?**
-
-### 2. Configure (Optional)
-
-```bash- Database health tracking
-
-# Copy environment template
-
-cp .env.example .env- Prometheus metrics exportThis platform showcases:
-
-
-
-# Edit .env to add Slack webhook (optional)- ✅ **Automated toil reduction** - Eliminates manual intervention for common failures
-
-# SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-
-```---- ✅ **Production thinking** - Circuit breakers, graduated response, incident deduplication
-
-
-
-### 3. Start Services- ✅ **Modern architecture** - Containerized, API-driven, observable
-
-```bash
-
-# Build and start all containers## 🛠️ Tech Stack- ✅ **Real-world SRE practices** - Health checks, SLOs, automated remediation playbooks
-
-docker compose up --build
-
-
-
-# Or run in background
-
-docker compose up -d| Layer | Technology |---
-
-```
-
-|-------|-----------|
-
-### 4. Access Application
-
-- **Dashboard**: http://localhost:3000| **Backend** | Python 3.11, Flask, SQLAlchemy, Flask-SocketIO |## ✨ Features
-
-- **API**: http://localhost:5000
-
-- **Prometheus**: http://localhost:9090| **Frontend** | React 18, Vite, Tailwind CSS, Recharts |
-
-
-
-### 5. Test It Works| **Database** | PostgreSQL 15 |### **Incident Detection**
+# Auto-Remediation Platform
+
+Automated infrastructure monitoring and remediation for containerized services.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Overview
+
+Production-ready incident detection and safe recovery actions:
+- Health checks every 5 seconds
+- Detects crashes, CPU spikes, error-rate anomalies, slow responses
+- Automated restarts with circuit breaker (prevents loops)
+- Real-time metrics via WebSocket and Prometheus
+- PostgreSQL persistence for incidents and actions
+
+## Capabilities
+
+Incident detection:
+- Health check failures (unreachable/5xx)
+- High error rate (default >20%)
+- CPU spikes (default >80%)
+- Elevated response time
+
+Automated remediation:
+- Safe container restarts
+- Circuit breaker (max restarts per window)
+- Cooldown between actions
+- Manual interventions via API
+
+Operational telemetry:
+- Prometheus scrape on `/metrics`
+- WebSocket metric stream (every 2s)
+- Database health checks (connections, cache hit ratio)
+
+## Architecture
+
+- Backend: Flask 3.0, Flask-SocketIO, SQLAlchemy
+- Bot: Python worker running detectors and remediation
+- Frontend: React 18 (Vite, Tailwind), Socket.IO client
+- Database: PostgreSQL 15
+- Monitoring: Prometheus (scrapes app only)
+- Containers: Docker Compose (app, frontend, postgres, bot, prometheus)
+
+## Getting Started
+
+Prerequisites:
+- Docker Desktop
+- Git
+
+Steps:
+1. Clone the repository
+2. Start the stack
+3. Open the dashboard
 
 ```powershell
-
-# Crash the application| **Container** | Docker, Docker Compose, Nginx |- ✅ Health check failures (connection timeout, HTTP errors)
-
-Invoke-RestMethod -Uri http://localhost:5000/crash -Method Post
-
-| **Monitoring** | Prometheus, psutil |- ✅ High error rate (configurable thresholds)
-
-# Watch bot auto-restart it
-
-docker compose logs -f ar_bot| **Real-Time** | WebSocket (Socket.IO) |- ✅ CPU spikes (system and simulated)
-
-
-
-# You should see:- ✅ High response times (P95/P99 latency)
-
-# [INFO] Health check failed for ar_app
-
-# [INFO] Creating incident: health_check_failure---- ✅ Incident deduplication (prevent alert storms)
-
-# [INFO] Executing remediation: restart_container
-
-# [INFO] Container ar_app restarted successfully
-
+git clone https://github.com/mainulhossain123/infra-autofix-agent.git ; cd infra-autofix-agent
+docker compose up --build -d
+Start-Process http://localhost:3000
 ```
 
-## 🚀 Quick Start### **Automated Remediation**
+Services:
+- Dashboard: http://localhost:3000
+- API: http://localhost:5000
+- Prometheus: http://localhost:9090
 
----
+## Configuration
 
-- 🔄 **Container restart** - Recover from application crashes
+Runtime settings are exposed via the API and environment variables. Do not commit secrets.
 
-## 📡 API Endpoints
+Key settings (examples):
+- BOT_POLL_SECONDS: 5
+- ERROR_RATE_THRESHOLD: 0.2
+- CPU_THRESHOLD: 80
+- MAX_RESTARTS_PER_5MIN: 3
+- COOLDOWN_SECONDS: 120
+- DATA_RETENTION_DAYS: 180
 
-### **1. Clone & Configure**- 📈 **Auto-scaling** - Start replica containers under load
-
-**Base URL:** `http://localhost:5000`
-
-- 🛡️ **Circuit breaker** - Prevent infinite restart loops
-
-### Health & Metrics
-
-``````bash- ⏱️ **Cooldown periods** - Rate limiting for actions
-
-GET  /api/health              # Application health + metrics
-
-GET  /api/metrics             # Current application metricsgit clone https://github.com/mainulhossain123/infra-autofix-agent.git- 🎯 **Graduated response** - Escalation based on severity
-
-GET  /metrics                 # Prometheus format metrics
-
-GET  /api/database/health     # PostgreSQL health statuscd infra-autofix-agent
-
-GET  /api/database/connections # Database connection pool stats
-
-```### **Observability**
-
-
-
-### Incidents# Copy environment template- 📊 **Prometheus metrics** - Request rate, error rate, latency, CPU, memory
-
-```
-
-GET  /api/incidents                    # List all incidents (paginated)cp .env.example .env- 💾 **Incident history** - Full audit trail in PostgreSQL
-
-GET  /api/incidents/{id}               # Get specific incident
-
-     ?status=ACTIVE|RESOLVED|ESCALATED # Filter by status- 📈 **Remediation stats** - Success rates, execution times
-
-     ?limit=50&offset=0                # Pagination
-
-```# (Optional) Add Slack webhook in .env- 🔔 **Multi-channel alerts** - Slack, console, PagerDuty (coming soon)
-
-
-
-### Remediation# SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-
-```
-
-GET  /api/remediation/history          # All remediation actions```### **REST API**
-
-POST /api/remediation/manual           # Trigger manual action
-
-```- 📡 **15+ endpoints** - Health, incidents, metrics, config, remediation
-
-
-
-**Manual Remediation Request:**### **2. Start Services**- 🔧 **Manual remediation** - Trigger actions via API
-
+Update configuration at runtime:
 ```json
-
-POST /api/remediation/manual- ⚙️ **Dynamic configuration** - Update thresholds without redeployment
-
-{
-
-  "action_type": "restart_container",  // or "scale_up", "scale_down", "heal"```bash- 📖 **OpenAPI docs** - Interactive API documentation (coming soon)
-
-  "target": "ar_app",
-
-  "reason": "Manual intervention due to memory leak"# Build and start all containers
-
-}
-
-```docker compose up --build---
-
-
-
-### Configuration
-
-```
-
-GET  /api/config           # Get all configuration# Or run in background## 🏗️ Architecture
-
-GET  /api/config/{key}     # Get specific config value
-
-PUT  /api/config           # Update configurationdocker compose up -d
-
-```
-
-``````
-
-**Update Config Example:**
-
-```json┌─────────────────────────────────────────────────────┐
-
 PUT /api/config
-
-{### **3. Access Application**│              Auto-Remediation Platform              │
-
+{
   "key": "error_rate_threshold",
-
-  "value": 0.10├─────────────────────────────────────────────────────┤
-
+  "value": 0.10
 }
-
-```- **Dashboard**: http://localhost:3000 (React frontend)│                                                     │
-
-
-
-### Testing/Simulation- **API**: http://localhost:5000│  ┌──────────┐      ┌──────────┐      ┌─────────┐  │
-
 ```
 
-POST /crash                              # Crash application immediately- **Prometheus**: http://localhost:9090│  │  Flask   │◄─────┤   Bot    │─────►│ Docker  │  │
+## API Summary
 
-POST /api/trigger/cpu-spike?duration=30  # Simulate CPU spike (seconds)
+Base: http://localhost:5000
 
-POST /api/trigger/error-spike?duration=30 # Simulate error spike (seconds)- **Database**: localhost:5432│  │   API    │      │ Monitor  │      │ Engine  │  │
+Health & metrics:
+- GET /api/health
+- GET /api/metrics
+- GET /metrics
+- GET /api/database/health
+- GET /api/database/connections
 
+Incidents:
+- GET /api/incidents
+- GET /api/incidents/{id}
+
+Remediation:
+- GET /api/remediation/history
+- POST /api/remediation/manual
+
+Configuration:
+- GET /api/config
+- GET /api/config/{key}
+- PUT /api/config
+
+## Operations
+
+Start:
+```powershell
+docker compose up -d
 ```
 
-│  └────┬─────┘      └────┬─────┘      └─────────┘  │
-
----
-
-### **4. Test Auto-Remediation**│       │                 │                           │
-
-## 🧪 Testing Guide
-
-│       │     ┌───────────▼────────────┐             │
-
-### Test 1: Application Crash & Auto-Recovery
-
-```powershell```powershell│       └────►│   PostgreSQL Database  │             │
-
-# 1. Crash the app
-
-curl -X POST http://localhost:5000/crash# Trigger application crash│             │  (Incidents, Actions)  │             │
-
-
-
-# 2. Watch bot detect and restartInvoke-RestMethod -Uri http://localhost:5000/crash -Method Post│             └────────────────────────┘             │
-
-docker compose logs -f ar_bot
-
-│                                                     │
-
-# 3. Verify app is back up
-
-curl http://localhost:5000/api/health# Watch bot logs (see auto-restart)│  Components:                                        │
-
-
-
-# Expected: Bot restarts container within 5-10 secondsdocker compose logs -f ar_bot│  • Incident Detectors (health, errors, CPU)        │
-
+Logs:
+```powershell
+docker compose logs -f
 ```
 
-│  • Remediation Engine (restart, scale)             │
-
-### Test 2: CPU Spike Detection
-
-```powershell# Expected: Bot detects crash → Creates incident → Restarts container│  • Circuit Breaker (prevent flapping)              │
-
-# 1. Trigger CPU spike for 30 seconds
-
-curl -X POST "http://localhost:5000/api/trigger/cpu-spike?duration=30"```│  • Notifications (Slack, console)                  │
-
-
-
-# 2. Monitor CPU usage│  • Prometheus Metrics (observability)              │
-
-docker stats ar_app
-
----└─────────────────────────────────────────────────────┘
-
-# 3. Check bot logs
-
-docker compose logs -f ar_bot```
-
-
-
-# Expected: CPU goes to ~95%, bot detects if >80%## 📡 API Endpoints
-
+Restart app service:
+```powershell
+docker compose up --build ar_app
 ```
 
-### **Data Flow**
+Database access (local only):
+```powershell
+docker exec -it ar_postgres psql -U remediation_user -d remediation_db
+```
 
-### Test 3: High Error Rate
+## Security & Privacy
 
-```powershell**Base URL**: `http://localhost:5000`
+- Do not commit environment files or secrets.
+- Optional integrations (e.g., Slack) must use environment variables.
+- This repository contains no proprietary data.
 
-# 1. Trigger 50% error rate for 30 seconds
+## License
+
+MIT License © 2025 Mainul Hossain
+
+# Auto-Remediation Platform
+
+Automated infrastructure monitoring and remediation. Detects application failures and triggers safe recovery actions.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Overview
+
+Production-ready incident detection and auto-remediation for containerized services.
+
+Highlights:
+- Health checks every 5 seconds
+- Detects crashes, CPU spikes, error-rate anomalies, slow responses
+- Automated restarts with circuit breaker (prevents loops)
+- Real-time metrics (WebSocket) and Prometheus endpoint
+- PostgreSQL persistence for incidents and actions
+
+## Capabilities
+
+Incident detection:
+- Health check failures (unreachable/5xx)
+- High error rate (default >20%)
+- CPU spikes (default >80%)
+- Elevated response time
+
+Automated remediation:
+- Safe container restarts
+- Circuit breaker (max restarts per window)
+- Cooldown between actions
+- Manual interventions via API
+
+Operational telemetry:
+- Prometheus scrape on `/metrics`
+- WebSocket metric stream (2s)
+- Database health checks (connections, cache hit ratio)
+
+## Architecture
+
+- Backend: Flask 3.0, Flask-SocketIO, SQLAlchemy
+- Bot: Python worker running detectors and remediation
+- Frontend: React 18 (Vite, Tailwind), Socket.IO client
+- Database: PostgreSQL 15
+- Monitoring: Prometheus (scrapes app only)
+- Containers: Docker Compose (app, frontend, postgres, bot, prometheus)
+
+## Getting Started
+
+Prerequisites:
+- Docker Desktop
+- Git
+
+Steps:
+1. Clone the repository
+2. Start the stack
+3. Open the dashboard
+
+```powershell
+git clone https://github.com/mainulhossain123/infra-autofix-agent.git ; cd infra-autofix-agent
+docker compose up --build -d
+Start-Process http://localhost:3000
+```
+
+Services:
+- Dashboard: http://localhost:3000
+- API: http://localhost:5000
+- Prometheus: http://localhost:9090
+
+## Configuration
+
+Runtime settings are exposed via the API and environment variables. Do not commit secrets.
+
+Key settings (examples):
+- BOT_POLL_SECONDS: 5
+- ERROR_RATE_THRESHOLD: 0.2
+- CPU_THRESHOLD: 80
+- MAX_RESTARTS_PER_5MIN: 3
+- COOLDOWN_SECONDS: 120
+- DATA_RETENTION_DAYS: 180
+
+Update configuration at runtime:
+```json
+PUT /api/config
+{
+  "key": "error_rate_threshold",
+  "value": 0.10
+}
+```
+
+## API Summary
+
+Base: http://localhost:5000
+
+Health & metrics:
+- GET /api/health
+- GET /api/metrics
+- GET /metrics
+- GET /api/database/health
+- GET /api/database/connections
+
+Incidents:
+- GET /api/incidents
+- GET /api/incidents/{id}
+
+Remediation:
+- GET /api/remediation/history
+- POST /api/remediation/manual
+
+Configuration:
+- GET /api/config
+- GET /api/config/{key}
+- PUT /api/config
+
+## Operations
+
+Start:
+```powershell
+docker compose up -d
+```
+
+Logs:
+```powershell
+docker compose logs -f
+```
+
+Restart app service:
+```powershell
+docker compose up --build ar_app
+```
+
+Database access (non-production only):
+```powershell
+docker exec -it ar_postgres psql -U remediation_user -d remediation_db
+```
+
+## Security & Privacy
+
+- Do not commit environment files or secrets.
+- Optional integrations (e.g., Slack) must use environment variables and be kept private.
+- This repository contains no proprietary data.
+
+## License
+
+MIT License © 2025 Mainul Hossain
+
 
 curl -X POST "http://localhost:5000/api/trigger/error-spike?duration=30"1. **Detection**: Bot polls `/api/health` every 5 seconds
 
