@@ -76,7 +76,16 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className="text-xs text-slate-400">
             <p className="font-medium text-slate-300 mb-1">Platform v1.0</p>
             <p>Auto-Remediation System</p>
-            <p className="mt-2">© 2025 DevOps Team</p>
+            <p className="mt-2">
+              <a 
+                href="https://github.com/mainulhossain123/infra-autofix-agent" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:text-slate-200 transition-colors"
+              >
+                © 2025 mainulhossain123/infra-autofix-agent
+              </a>
+            </p>
           </div>
         </div>
       </aside>
