@@ -1,0 +1,120 @@
+version: "3.8"
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ar_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-remediation_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-remediation_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-remediation_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./db/seed_data.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-remediation_user} -d ${POSTGRES_DB:-remediation_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - remediation_network
+
+  # Main Flask application
+  app:
+    build: ./app
+    container_name: ar_app
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-development}
+      - APP_PORT=${APP_PORT:-5000}
+      - REPLICA=false
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-remediation_user}:${POSTGRES_PASSWORD:-remediation_pass}@postgres:5432/${POSTGRES_DB:-remediation_db}
+      - ERROR_RATE_THRESHOLD=${ERROR_RATE_THRESHOLD:-0.2}
+      - CPU_THRESHOLD=${CPU_THRESHOLD:-80}
+      - ENABLE_SIMULATOR=true
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - ./app:/usr/src/app
+    networks:
+      - remediation_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Auto-remediation bot
+  bot:
+    build: ./bot
+    container_name: ar_bot
+    environment:
+      - APP_HOST=http://app:5000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-remediation_user}:${POSTGRES_PASSWORD:-remediation_pass}@postgres:5432/${POSTGRES_DB:-remediation_db}
+      - BOT_POLL_SECONDS=${BOT_POLL_SECONDS:-5}
+      - CPU_THRESHOLD=${CPU_THRESHOLD:-80}
+      - ERROR_RATE_THRESHOLD=${ERROR_RATE_THRESHOLD:-0.2}
+      - RESPONSE_TIME_THRESHOLD_MS=${RESPONSE_TIME_THRESHOLD_MS:-500}
+      - MAX_RESTARTS_PER_5MIN=${MAX_RESTARTS_PER_5MIN:-3}
+      - COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-120}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - DATA_RETENTION_DAYS=${DATA_RETENTION_DAYS:-180}  # Delete logs older than 6 months
+      - CLEANUP_INTERVAL_HOURS=${CLEANUP_INTERVAL_HOURS:-24}  # Run cleanup daily
+    depends_on:
+      - postgres
+      - app
+    volumes:
+      - ./bot:/usr/src/bot
+      - /var/run/docker.sock:/var/run/docker.sock  # Allow bot to control Docker
+    networks:
+      - remediation_network
+    stdin_open: true
+    tty: true
+
+  # React Frontend Dashboard
+  frontend:
+    build: ./frontend
+    container_name: ar_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - app
+    networks:
+      - remediation_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ar_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - remediation_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  prometheus_data:
+
+networks:
+  remediation_network:
+    driver: bridge
