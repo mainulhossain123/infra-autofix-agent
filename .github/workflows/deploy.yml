@@ -1,0 +1,120 @@
+name: Deploy to Cloud
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: 'Version/tag to deploy (e.g., v1.0.0 or latest)'
+        required: true
+        default: 'latest'
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy-to-aws-ecs:
+    name: Deploy to AWS ECS
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Fill in the new image ID in the ECS task definition - App
+        id: task-def-app
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: .aws/task-definition-app.json
+          container-name: app
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-app:${{ github.event.inputs.version || 'latest' }}
+      
+      - name: Fill in the new image ID in the ECS task definition - Bot
+        id: task-def-bot
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: .aws/task-definition-bot.json
+          container-name: bot
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-bot:${{ github.event.inputs.version || 'latest' }}
+      
+      - name: Fill in the new image ID in the ECS task definition - Frontend
+        id: task-def-frontend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: .aws/task-definition-frontend.json
+          container-name: frontend
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.event.inputs.version || 'latest' }}
+      
+      - name: Deploy App to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-app.outputs.task-definition }}
+          service: infra-autofix-app-service
+          cluster: ${{ secrets.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
+      
+      - name: Deploy Bot to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-bot.outputs.task-definition }}
+          service: infra-autofix-bot-service
+          cluster: ${{ secrets.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
+      
+      - name: Deploy Frontend to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-frontend.outputs.task-definition }}
+          service: infra-autofix-frontend-service
+          cluster: ${{ secrets.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
+      
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Deployment to ${{ github.event.inputs.environment || 'production' }} completed successfully!"
+          echo "Version: ${{ github.event.inputs.version || 'latest' }}"
+
+  # Alternative: Deploy using Docker Compose to a VM
+  deploy-to-vm:
+    name: Deploy to VM (SSH)
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'staging'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            cd /opt/infra-autofix-agent
+            git pull origin main
+            docker compose pull
+            docker compose up -d --force-recreate
+            docker system prune -af

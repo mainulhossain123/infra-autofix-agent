@@ -1,0 +1,76 @@
+version: 2
+updates:
+  # Python dependencies for app
+  - package-ecosystem: "pip"
+    directory: "/app"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(app)"
+  
+  # Python dependencies for bot
+  - package-ecosystem: "pip"
+    directory: "/bot"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(bot)"
+  
+  # npm dependencies for frontend
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "chore(frontend)"
+  
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/app"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+  
+  - package-ecosystem: "docker"
+    directory: "/bot"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+  
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+  
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"

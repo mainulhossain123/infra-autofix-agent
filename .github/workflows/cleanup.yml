@@ -1,0 +1,39 @@
+name: Cleanup
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Weekly on Sunday at 3 AM
+  workflow_dispatch:
+
+jobs:
+  cleanup-packages:
+    name: Cleanup Old Container Images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    
+    steps:
+      - name: Delete old container images
+        uses: snok/container-retention-policy@v2
+        with:
+          image-names: infra-autofix-agent-app,infra-autofix-agent-bot,infra-autofix-agent-frontend
+          cut-off: 30 days ago UTC
+          account-type: org
+          keep-at-least: 5
+          untagged-only: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+  
+  cleanup-artifacts:
+    name: Cleanup Old Artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    
+    steps:
+      - name: Delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          retain_days: 30
+          keep_minimum_runs: 10

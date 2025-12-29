@@ -1,5 +1,9 @@
 # infra-autofix-agent
 
+[![CI Pipeline](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/ci.yml)
+[![Security Scanning](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/security.yml/badge.svg)](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/security.yml)
+[![Docker Publish](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/docker-publish.yml)
+
 A compact, production-oriented auto-remediation agent for containerized services. This repository contains a Flask backend, a remediation bot, a React dashboard, and a Prometheus scrape target.
 
 This README contains only necessary, code-related information: how to run the project locally, the core services, key API endpoints, configuration options, and development notes.
@@ -182,6 +186,57 @@ Notes:
 - API reference: docs/API.md
 - Docker commands: docs/docker.md
 - Operations & troubleshooting: docs/operations.md
+
+## GitHub Actions & Automation
+
+This project includes automated CI/CD workflows:
+
+**🔄 Continuous Integration (`ci.yml`)**
+- Runs on every push and pull request
+- Executes Python tests (pytest) with coverage
+- Builds and tests all Docker images
+- Lints Python (flake8) and frontend code
+- Uploads build artifacts
+
+**🐳 Docker Publishing (`docker-publish.yml`)**
+- Automatically builds and publishes images to GitHub Container Registry (GHCR)
+- Triggered on: pushes to `main`, version tags (`v*.*.*`), manual dispatch
+- Multi-platform builds (amd64, arm64)
+- Semantic versioning with tags
+
+**🔒 Security Scanning (`security.yml`)**
+- CodeQL analysis for Python and JavaScript
+- Trivy vulnerability scanning for container images
+- Python Safety dependency checks
+- Runs weekly and on every PR
+
+**🚀 Deployment (`deploy.yml`)**
+- Manual or tag-triggered deployment
+- Supports AWS ECS and VM/SSH deployment
+- Environment selection (staging/production)
+- Zero-downtime rolling updates
+
+**📦 Dependabot (`dependabot.yml`)**
+- Automatic dependency updates for Python, npm, Docker, and GitHub Actions
+- Weekly PRs for security patches
+
+### Using GitHub Actions
+
+**Pull published images:**
+```powershell
+docker pull ghcr.io/mainulhossain123/infra-autofix-agent-app:latest
+docker pull ghcr.io/mainulhossain123/infra-autofix-agent-bot:latest
+docker pull ghcr.io/mainulhossain123/infra-autofix-agent-frontend:latest
+```
+
+**Trigger manual deployment:**
+- Go to Actions → Deploy to Cloud → Run workflow
+- Select environment and version
+
+**Required GitHub Secrets for Deployment:**
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+- `ECS_CLUSTER_NAME` (for ECS deployment)
+- `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (for VM deployment)
 
 ## License
 

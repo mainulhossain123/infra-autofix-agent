@@ -1,0 +1,60 @@
+name: Performance Testing
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday at 2 AM
+
+jobs:
+  load-test:
+    name: API Load Testing
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd app
+          pip install -r requirements.txt
+          pip install locust
+      
+      - name: Start Flask app
+        env:
+          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
+          FLASK_ENV: testing
+        run: |
+          cd app
+          python app.py &
+          sleep 5
+      
+      - name: Run load tests with Locust
+        run: |
+          locust -f tests/locustfile.py --headless --users 100 --spawn-rate 10 --run-time 60s --host http://localhost:5000 --html reports/load-test-report.html || true
+      
+      - name: Upload performance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-report
+          path: reports/
+          retention-days: 30
