@@ -96,42 +96,86 @@ PUT /api/config
 
 ## Development
 
-- Backend: Python 3.11, Flask, Flask-SocketIO, SQLAlchemy
-- Frontend: React (Vite), Tailwind
-- Database: PostgreSQL
+- Backend: Python 3.11+ (py launcher recommended), Flask, Flask-SocketIO, SQLAlchemy
+- Frontend: Node.js (18+), React (Vite), Tailwind
+- Database: PostgreSQL (via Docker Compose)
 
-Local development (run without Docker)
+Local development (Windows PowerShell - simplest copy/paste commands)
 
-Backend
+1) Verify prerequisites (run each; install missing tools first):
+
+```powershell
+docker --version
+docker compose version
+py --version    # or: python --version
+node --version
+npm --version
+```
+
+2) Backend (app) - create virtualenv and install dependencies:
+
 ```powershell
 cd app
-python -m venv .venv
+py -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 python app.py
 ```
 
-Frontend
+3) Bot - create virtualenv and install dependencies (bot uses Docker SDK):
+
 ```powershell
-cd frontend
-npm install
-npm run dev
+cd ..\bot
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python bot.py
 ```
 
-Testing & troubleshooting
+4) Frontend - install and run dev server (or build for production):
 
-- View logs:
 ```powershell
+cd ..\frontend
+npm install
+npm run dev        # development: uses Vite (http://localhost:5173)
+# OR build static files for Docker/nginx
+npm run build
+```
+
+5) (Recommended) Run entire stack with Docker Compose from project root:
+
+```powershell
+cd ..\           # project root (where docker-compose.yml lives)
+docker compose up --build -d
+docker compose ps
 docker compose logs -f
 ```
-- Check services:
+
+6) Stop the stack:
+
 ```powershell
-docker compose ps
+docker compose down
 ```
-- Check Prometheus metrics (raw):
+
+Testing & troubleshooting (quick checks)
+
 ```powershell
+# API health:
+curl http://localhost:5000/health
+
+# Prometheus metrics endpoint:
 curl http://localhost:5000/metrics
+
+# Dashboard (when frontend container served on 3000):
+start http://localhost:3000
 ```
+
+Notes:
+- On Windows use the `py` launcher when available (preferred for selecting installed Python versions).
+- If you prefer WSL/Linux/macOS, replace PowerShell activation commands with `python3 -m venv .venv` and `source .venv/bin/activate`.
+- Do not commit secrets. Use environment variables (see `docker-compose.yml`).
 
 ## Docs
 
