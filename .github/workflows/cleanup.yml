@@ -18,7 +18,7 @@ jobs:
         with:
           image-names: infra-autofix-agent-app,infra-autofix-agent-bot,infra-autofix-agent-frontend
           cut-off: 30 days ago UTC
-          account-type: org
+          account-type: personal
           keep-at-least: 5
           untagged-only: true
           token: ${{ secrets.GITHUB_TOKEN }}
