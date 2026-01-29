@@ -1,0 +1,51 @@
+# Staging environment overrides
+
+global:
+  namespace: infra-autofix-staging
+
+app:
+  replicas: 2
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+
+frontend:
+  replicas: 2
+
+postgres:
+  persistence:
+    size: 20Gi
+
+prometheus:
+  persistence:
+    size: 30Gi
+  retention: 30d
+
+grafana:
+  persistence:
+    size: 10Gi
+
+loki:
+  persistence:
+    size: 30Gi
+  retention: 336h  # 14 days
+
+ingress:
+  enabled: true
+  hosts:
+    - host: infra-autofix-staging.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: app

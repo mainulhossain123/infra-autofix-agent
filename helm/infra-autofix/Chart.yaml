@@ -1,0 +1,14 @@
+apiVersion: v2
+name: infra-autofix-agent
+description: A Helm chart for Infrastructure Auto-Fix Agent
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - monitoring
+  - remediation
+  - auto-fix
+  - observability
+maintainers:
+  - name: Mainul Hossain
+    email: mainulhossain123@github.com

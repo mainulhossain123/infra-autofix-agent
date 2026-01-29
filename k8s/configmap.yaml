@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: infra-autofix
+data:
+  # Application Settings
+  APP_PORT: "5000"
+  FLASK_ENV: "production"
+  
+  # Bot Configuration
+  BOT_POLL_SECONDS: "5"
+  CPU_THRESHOLD: "80"
+  ERROR_RATE_THRESHOLD: "0.2"
+  RESPONSE_TIME_THRESHOLD_MS: "500"
+  
+  # Remediation Settings
+  MAX_RESTARTS_PER_5MIN: "3"
+  COOLDOWN_SECONDS: "120"
+  ENABLE_AUTO_SCALE: "true"
+  
+  # Database
+  POSTGRES_DB: "remediation_db"
+  DATABASE_URL: "postgresql://remediation_user:remediation_pass@postgres:5432/remediation_db"
+  
+  # Prometheus
+  PROMETHEUS_PORT: "9090"
+  
+  # Grafana
+  GRAFANA_PORT: "3001"

@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: infra-autofix
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - postgres.yaml
+  - app.yaml
+  - bot.yaml
+  - frontend.yaml
+  - prometheus.yaml
+  - grafana.yaml
+  - loki-promtail.yaml
+
+images:
+  - name: ghcr.io/mainulhossain123/infra-autofix-agent-app
+    newTag: latest
+  - name: ghcr.io/mainulhossain123/infra-autofix-agent-bot
+    newTag: latest
+  - name: ghcr.io/mainulhossain123/infra-autofix-agent-frontend
+    newTag: latest
+
+commonLabels:
+  app.kubernetes.io/name: infra-autofix-agent
+  app.kubernetes.io/managed-by: kustomize

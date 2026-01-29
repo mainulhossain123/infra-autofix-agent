@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bot
+  namespace: infra-autofix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bot
+  template:
+    metadata:
+      labels:
+        app: bot
+    spec:
+      serviceAccountName: bot-sa
+      containers:
+      - name: bot
+        image: ghcr.io/mainulhossain123/infra-autofix-agent-bot:latest
+        ports:
+        - containerPort: 8000
+          name: metrics
+        env:
+        - name: BOT_POLL_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: BOT_POLL_SECONDS
+        - name: CPU_THRESHOLD
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: CPU_THRESHOLD
+        - name: ERROR_RATE_THRESHOLD
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: ERROR_RATE_THRESHOLD
+        - name: MAX_RESTARTS_PER_5MIN
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: MAX_RESTARTS_PER_5MIN
+        - name: COOLDOWN_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: COOLDOWN_SECONDS
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DATABASE_URL
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: SLACK_WEBHOOK_URL
+              optional: true
+        - name: DOCKER_HOST
+          value: "unix:///var/run/docker.sock"
+        volumeMounts:
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bot
+  namespace: infra-autofix
+spec:
+  selector:
+    app: bot
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: metrics
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bot-sa
+  namespace: infra-autofix
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: bot-role
+  namespace: infra-autofix
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bot-rolebinding
+  namespace: infra-autofix
+subjects:
+- kind: ServiceAccount
+  name: bot-sa
+  namespace: infra-autofix
+roleRef:
+  kind: Role
+  name: bot-role
+  apiGroup: rbac.authorization.k8s.io

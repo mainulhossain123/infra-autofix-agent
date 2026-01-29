@@ -1,0 +1,55 @@
+# Development environment overrides
+
+global:
+  namespace: infra-autofix-dev
+
+app:
+  replicas: 1
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+  autoscaling:
+    enabled: false
+  env:
+    FLASK_ENV: "development"
+
+bot:
+  replicas: 1
+  env:
+    BOT_POLL_SECONDS: "10"
+
+frontend:
+  replicas: 1
+  service:
+    type: NodePort
+
+postgres:
+  persistence:
+    size: 5Gi
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+
+prometheus:
+  persistence:
+    size: 10Gi
+  retention: 7d
+
+grafana:
+  persistence:
+    size: 5Gi
+  service:
+    type: NodePort
+
+loki:
+  persistence:
+    size: 10Gi
+  retention: 72h
+
+ingress:
+  enabled: false

@@ -140,6 +140,7 @@ See [docs/github-actions.md](docs/github-actions.md) for details.
 
 - 📖 [API Reference](docs/API.md) - REST API endpoints and WebSocket events
 - 🐳 [Docker Commands](docs/docker.md) - Container management and troubleshooting
+- ☸️ [Kubernetes Deployment](docs/kubernetes.md) - K8s manifests and Helm charts
 - 🔧 [Operations Guide](docs/operations.md) - Configuration and maintenance
 - 📊 [Observability](docs/observability.md) - Metrics, logs, dashboards, alerts
 - 🚀 [GitHub Actions](docs/github-actions.md) - CI/CD workflows and deployment
