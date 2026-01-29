@@ -67,7 +67,7 @@ jobs:
           image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.event.inputs.version || 'latest' }}
       
       - name: Deploy App to ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.task-def-app.outputs.task-definition }}
           service: infra-autofix-app-service
@@ -75,7 +75,7 @@ jobs:
           wait-for-service-stability: true
       
       - name: Deploy Bot to ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.task-def-bot.outputs.task-definition }}
           service: infra-autofix-bot-service
@@ -83,7 +83,7 @@ jobs:
           wait-for-service-stability: true
       
       - name: Deploy Frontend to ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.task-def-frontend.outputs.task-definition }}
           service: infra-autofix-frontend-service
