@@ -1,5 +1,7 @@
 # Operations & Troubleshooting
 
+> **For Kubernetes operations**, see [kubernetes.md](kubernetes.md#monitoring--troubleshooting)
+
 ## Endpoints
 - Dashboard: http://localhost:3000
 - API: http://localhost:5000

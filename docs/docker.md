@@ -1,5 +1,7 @@
 # Docker & Containers
 
+> **Note:** For production Kubernetes deployment, see [kubernetes.md](kubernetes.md)
+
 ## Services
 - **app** - Flask backend (port 5000)
 - **frontend** - React dashboard (port 3000)

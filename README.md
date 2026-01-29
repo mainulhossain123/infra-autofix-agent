@@ -21,17 +21,50 @@
 
 ### Prerequisites
 
-- Docker 20.10+
-- Docker Compose 2.0+
-- (Optional) Python 3.11+, Node.js 18+
+- **Docker Compose**: Docker 20.10+, Docker Compose 2.0+
+- **Kubernetes** (optional): kubectl, Helm 3.0+, K8s cluster 1.20+
+- **Local Development** (optional): Python 3.11+, Node.js 18+
 
-### Run with Docker
+### Option 1: Run with Docker Compose (Easiest)
 
 ```bash
 git clone https://github.com/mainulhossain123/infra-autofix-agent.git
 cd infra-autofix-agent
 docker compose up --build -d
 ```
+
+### Option 2: Deploy to Kubernetes
+
+**With Helm:**
+```bash
+# Development
+helm install infra-autofix ./helm/infra-autofix \
+  --namespace infra-autofix-dev \
+  --create-namespace \
+  --values ./helm/infra-autofix/values-dev.yaml
+
+# Production
+helm install infra-autofix ./helm/infra-autofix \
+  --namespace infra-autofix-prod \
+  --create-namespace \
+  --values ./helm/infra-autofix/values-prod.yaml
+```
+
+**With kubectl:**
+```bash
+kubectl apply -k k8s/
+```
+
+**Or use deployment script:**
+```bash
+# PowerShell
+.\scripts\deploy-k8s.ps1 -Method helm -Environment prod
+
+# Bash
+./scripts/deploy-k8s.sh helm prod
+```
+
+See [Kubernetes Deployment Guide](docs/kubernetes.md) for detailed instructions.
 
 ### Access Interfaces
 
@@ -67,6 +100,33 @@ docker compose up --build -d
  │  Metrics    │      │  Dashboards  │      │    Logs     │
  └─────────────┘      └──────────────┘      └─────────────┘
 ```
+
+## Deployment Options
+
+### 🐳 Docker Compose (Local/Development)
+Single-command setup for local development and testing. All services run in containers with Docker networking.
+
+```bash
+docker compose up -d
+```
+
+### ☸️ Kubernetes (Production/Cloud)
+Enterprise-grade deployment with auto-scaling, health checks, and high availability.
+
+- **Raw Manifests**: Full control with `kubectl apply -k k8s/`
+- **Helm Charts**: Environment management with `helm install`
+- **Kustomize**: Overlay-based configuration
+
+Features:
+- Horizontal Pod Autoscaling (2-10 replicas)
+- Persistent volumes for databases
+- RBAC and service accounts
+- LoadBalancers and Ingress
+- Multi-environment support (dev/staging/prod)
+
+See [Kubernetes Guide](docs/kubernetes.md) for full deployment instructions.
+
+---
 
 ## Development
 
@@ -120,6 +180,11 @@ npm run build
 **Alerting** - Production-ready rules in `prometheus/alerts.yml`
 
 Key metrics: request rates, latency, incidents, remediations, CPU/memory usage.
+
+**Kubernetes Monitoring:**
+- Automatic pod discovery and scraping
+- Kubernetes metrics via ServiceMonitor CRDs
+- DaemonSet log collection across all nodes
 
 See [docs/observability.md](docs/observability.md) for detailed monitoring guide.
 

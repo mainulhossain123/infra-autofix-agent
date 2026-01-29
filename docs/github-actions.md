@@ -67,8 +67,7 @@ This project uses GitHub Actions for comprehensive CI/CD automation. All workflo
 
 **Options**:
 1. **AWS ECS Deployment**: Uses ECS task definitions, supports blue-green deployments
-2. **VM Deployment**: SSH-based deployment using Docker Compose
-
+2. **VM Deployment**: SSH-based deployment using Docker Compose3. **Kubernetes**: For K8s deployments, see [Kubernetes Guide](kubernetes.md) - use ArgoCD, Flux, or kubectl apply
 **Required Secrets**:
 ```
 AWS_ACCESS_KEY_ID
