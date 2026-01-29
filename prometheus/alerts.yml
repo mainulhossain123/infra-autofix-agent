@@ -1,0 +1,119 @@
+groups:
+  - name: application_alerts
+    interval: 30s
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: app
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.instance }}"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: process_cpu_seconds_total > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: app
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for {{ $labels.instance }}"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes > 500000000
+        for: 5m
+        labels:
+          severity: warning
+          component: app
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanize }}B for {{ $labels.instance }}"
+
+      # Application down
+      - alert: ApplicationDown
+        expr: up{job="flask-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: app
+        annotations:
+          summary: "Application is down"
+          description: "{{ $labels.instance }} has been down for more than 1 minute"
+
+      # High response time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          component: app
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s for {{ $labels.instance }}"
+
+  - name: remediation_alerts
+    interval: 30s
+    rules:
+      # Frequent remediation actions
+      - alert: FrequentRemediations
+        expr: rate(remediation_actions_total[10m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: bot
+        annotations:
+          summary: "Frequent remediation actions"
+          description: "Remediation rate is {{ $value }} actions/sec - investigate root cause"
+
+      # Remediation failures
+      - alert: RemediationFailures
+        expr: rate(remediation_failures_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          component: bot
+        annotations:
+          summary: "Remediation actions failing"
+          description: "Remediation failure rate: {{ $value }} failures/sec"
+
+      # Circuit breaker open
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: bot
+        annotations:
+          summary: "Circuit breaker is open"
+          description: "Circuit breaker for {{ $labels.instance }} is preventing remediation actions"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # Database connection issues
+      - alert: DatabaseConnectionIssues
+        expr: rate(database_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection issues"
+          description: "Database error rate: {{ $value }} errors/sec"
+
+      # High incident count
+      - alert: HighIncidentCount
+        expr: incidents_total > 100
+        for: 5m
+        labels:
+          severity: info
+          component: monitoring
+        annotations:
+          summary: "High number of incidents"
+          description: "Total incidents: {{ $value }} - consider cleanup or investigation"

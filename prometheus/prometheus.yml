@@ -1,6 +1,19 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    cluster: 'infra-autofix-agent'
+    environment: 'production'
+
+# Alertmanager configuration (optional - add when needed)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Load alerting rules
+rule_files:
+  - 'alerts.yml'
 
 scrape_configs:
   # Scrape Flask application metrics
@@ -14,3 +27,11 @@ scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+
+  # Scrape bot metrics (if bot exposes metrics endpoint)
+  - job_name: 'remediation-bot'
+    static_configs:
+      - targets: ['bot:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s

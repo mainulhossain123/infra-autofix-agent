@@ -1,11 +1,14 @@
 # Docker & Containers
 
 ## Services
-- app (Flask backend)
-- frontend (React dashboard)
-- postgres (database)
-- bot (auto-remediation worker)
-- prometheus (metrics)
+- **app** - Flask backend (port 5000)
+- **frontend** - React dashboard (port 3000)
+- **postgres** - PostgreSQL database (port 5432)
+- **bot** - Auto-remediation worker (port 8000 for metrics)
+- **prometheus** - Metrics collection (port 9090)
+- **grafana** - Dashboards and visualization (port 3001)
+- **loki** - Log aggregation (port 3100)
+- **promtail** - Log shipping agent
 
 ## Common commands (PowerShell)
 ```powershell

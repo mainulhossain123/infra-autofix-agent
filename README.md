@@ -3,240 +3,147 @@
 [![CI Pipeline](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/ci.yml)
 [![Security Scanning](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/security.yml/badge.svg)](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/security.yml)
 [![Docker Publish](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/docker-publish.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A compact, production-oriented auto-remediation agent for containerized services. This repository contains a Flask backend, a remediation bot, a React dashboard, and a Prometheus scrape target.
+> Production-ready auto-remediation platform for containerized infrastructure with real-time monitoring, intelligent incident detection, and automated recovery.
 
-This README contains only necessary, code-related information: how to run the project locally, the core services, key API endpoints, configuration options, and development notes.
+## Features
 
-## Table of contents
+- 🔍 **Automated Incident Detection** - CPU spikes, memory leaks, high error rates, latency issues
+- 🔄 **Self-Healing** - Automatic container restarts with circuit breaker protection
+- 📊 **Full Observability Stack** - Grafana dashboards, Prometheus metrics, Loki logs
+- ⚡ **Real-time Updates** - WebSocket-based live dashboard
+- 🚨 **Smart Alerting** - Configurable thresholds with Prometheus alerts
+- 🐳 **Cloud-Native** - Docker/Kubernetes ready with multi-platform support
+- 🔐 **Production-Grade** - CI/CD pipelines, security scanning, automated testing
 
-- Overview
-- Quick start
-- Services
-- Key API endpoints
-- Configuration
-- Development notes
-- Docs
-- License
+## Quick Start
 
----
+### Prerequisites
 
-## Overview
+- Docker 20.10+
+- Docker Compose 2.0+
+- (Optional) Python 3.11+, Node.js 18+
 
-infra-autofix-agent monitors a service, detects incidents (crashes, high error rates, CPU spikes, high latency), logs incidents to PostgreSQL, and performs safe remediation actions (container restarts) with a circuit breaker to avoid restart loops. It exposes metrics for Prometheus and pushes realtime updates to a React dashboard via WebSocket.
+### Run with Docker
 
-## Quick start (Docker, PowerShell)
-
-1. Clone
-
-```powershell
+```bash
 git clone https://github.com/mainulhossain123/infra-autofix-agent.git
 cd infra-autofix-agent
-```
-
-2. Start services
-
-```powershell
 docker compose up --build -d
 ```
 
-3. Validate
+### Access Interfaces
 
-- Dashboard: http://localhost:3000
-- API: http://localhost:5000
-- Prometheus UI (if running): http://localhost:9090
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| React Dashboard | http://localhost:3000 | - |
+| Grafana | http://localhost:3001 | admin/admin |
+| API Docs | http://localhost:5000 | - |
+| Prometheus | http://localhost:9090 | - |
+| Loki | http://localhost:3100 | - |
 
-## Services (compose)
+## Architecture
 
-- ar_app: Flask backend (API + /metrics)
-- ar_frontend: React dashboard
-- ar_postgres: PostgreSQL (incidents & actions)
-- ar_bot: Remediation worker (detectors + remediation)
-- ar_prometheus: Prometheus (optional - scrapes `ar_app`)
-
-## Key API endpoints (summary)
-
-Base URL: http://localhost:5000
-
-Health & metrics
-- GET /health
-- GET /api/health
-- GET /api/metrics
-- GET /metrics  (Prometheus format)
-
-Incidents
-- GET /api/incidents
-- GET /api/incidents/{id}
-
-Remediation
-- GET /api/remediation/history
-- POST /api/remediation/manual
-
-Simulations (test-only)
-- POST /crash
-- POST /api/trigger/cpu-spike?duration={s}
-- POST /api/trigger/error-spike?duration={s}
-- POST /api/trigger/latency-spike?duration={s}
-- POST /api/trigger/stop-all
-
-## Configuration
-
-Config is sourced from environment variables and persisted configuration. Do not commit secrets.
-
-Important environment variables (examples)
-- BOT_POLL_SECONDS (default: 5)
-- ERROR_RATE_THRESHOLD (default: 0.2)
-- CPU_THRESHOLD (default: 80)
-- MAX_RESTARTS_PER_5MIN (default: 3)
-- COOLDOWN_SECONDS (default: 120)
-- DATA_RETENTION_DAYS (default: 180)
-
-Update runtime configuration via API
-
-PUT /api/config
-```json
-{ "key": "error_rate_threshold", "value": 0.10 }
+```
+┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
+│  React          │────▶│  Flask API   │────▶│  PostgreSQL │
+│  Dashboard      │     │  (Python)    │     │  Database   │
+│  (Port 3000)    │     │  (Port 5000) │     │  (Port 5432)│
+└─────────────────┘     └──────────────┘     └─────────────┘
+                               │
+                               ▼
+                        ┌──────────────┐
+                        │ Remediation  │
+                        │     Bot      │
+                        │  (Python)    │
+                        └──────────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        │                      │                      │
+        ▼                      ▼                      ▼
+ ┌─────────────┐      ┌──────────────┐      ┌─────────────┐
+ │ Prometheus  │      │   Grafana    │      │    Loki     │
+ │  Metrics    │      │  Dashboards  │      │    Logs     │
+ └─────────────┘      └──────────────┘      └─────────────┘
 ```
 
 ## Development
 
-- Backend: Python 3.11+ (py launcher recommended), Flask, Flask-SocketIO, SQLAlchemy
-- Frontend: Node.js (18+), React (Vite), Tailwind
-- Database: PostgreSQL (via Docker Compose)
+### Local Setup (Without Docker)
 
-Local development (Windows PowerShell - simplest copy/paste commands)
-
-1) Verify prerequisites (run each; install missing tools first):
-
-```powershell
-docker --version
-docker compose version
-py --version    # or: python --version
-node --version
-npm --version
-```
-
-2) Backend (app) - create virtualenv and install dependencies:
-
+**Backend:**
 ```powershell
 cd app
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
 pip install -r requirements.txt
 python app.py
 ```
 
-3) Bot - create virtualenv and install dependencies (bot uses Docker SDK):
-
+**Bot:**
 ```powershell
-cd ..\bot
+cd bot
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
 pip install -r requirements.txt
 python bot.py
 ```
 
-4) Frontend - install and run dev server (or build for production):
+**Frontend:**
+```powershell
+cd frontend
+npm install
+npm run dev  # http://localhost:5173
+```
+
+### Testing
 
 ```powershell
-cd ..\frontend
-npm install
-npm run dev        # development: uses Vite (http://localhost:5173)
-# OR build static files for Docker/nginx
+# Backend
+cd app
+pytest tests/ --cov
+
+# Linting
+flake8 app bot
+
+# Frontend
+cd frontend
 npm run build
 ```
 
-5) (Recommended) Run entire stack with Docker Compose from project root:
+## Monitoring Stack
 
-```powershell
-cd ..\           # project root (where docker-compose.yml lives)
-docker compose up --build -d
-docker compose ps
-docker compose logs -f
-```
+**Grafana** - Pre-built dashboards at http://localhost:3001 (admin/admin)  
+**Prometheus** - Metrics collection at http://localhost:9090  
+**Loki + Promtail** - Centralized logging at http://localhost:3100  
+**Alerting** - Production-ready rules in `prometheus/alerts.yml`
 
-6) Stop the stack:
+Key metrics: request rates, latency, incidents, remediations, CPU/memory usage.
 
-```powershell
-docker compose down
-```
+See [docs/observability.md](docs/observability.md) for detailed monitoring guide.
 
-Testing & troubleshooting (quick checks)
+## Automation
 
-```powershell
-# API health:
-curl http://localhost:5000/health
+Includes 7 GitHub Actions workflows for CI/CD:
+- **CI** - Testing, linting, building
+- **Docker Publish** - GHCR image publishing with semantic versioning
+- **Security** - CodeQL, Trivy, dependency scanning
+- **Deploy** - AWS ECS and VM deployment
+- **Performance** - Locust load testing
+- **Release** - Automated GitHub releases
+- **Cleanup** - Artifact management
 
-# Prometheus metrics endpoint:
-curl http://localhost:5000/metrics
+See [docs/github-actions.md](docs/github-actions.md) for details.
 
-# Dashboard (when frontend container served on 3000):
-start http://localhost:3000
-```
+## Documentation
 
-Notes:
-- On Windows use the `py` launcher when available (preferred for selecting installed Python versions).
-- If you prefer WSL/Linux/macOS, replace PowerShell activation commands with `python3 -m venv .venv` and `source .venv/bin/activate`.
-- Do not commit secrets. Use environment variables (see `docker-compose.yml`).
-
-## Docs
-
-- API reference: docs/API.md
-- Docker commands: docs/docker.md
-- Operations & troubleshooting: docs/operations.md
-
-## GitHub Actions & Automation
-
-This project includes automated CI/CD workflows:
-
-**🔄 Continuous Integration (`ci.yml`)**
-- Runs on every push and pull request
-- Executes Python tests (pytest) with coverage
-- Builds and tests all Docker images
-- Lints Python (flake8) and frontend code
-- Uploads build artifacts
-
-**🐳 Docker Publishing (`docker-publish.yml`)**
-- Automatically builds and publishes images to GitHub Container Registry (GHCR)
-- Triggered on: pushes to `main`, version tags (`v*.*.*`), manual dispatch
-- Multi-platform builds (amd64, arm64)
-- Semantic versioning with tags
-
-**🔒 Security Scanning (`security.yml`)**
-- CodeQL analysis for Python and JavaScript
-- Trivy vulnerability scanning for container images
-- Python Safety dependency checks
-- Runs weekly and on every PR
-
-**🚀 Deployment (`deploy.yml`)**
-- Manual or tag-triggered deployment
-- Supports AWS ECS and VM/SSH deployment
-- Environment selection (staging/production)
-- Zero-downtime rolling updates
-
-**📦 Dependabot (`dependabot.yml`)**
-- Automatic dependency updates for Python, npm, Docker, and GitHub Actions
-- Weekly PRs for security patches
-
-### Using GitHub Actions
-
-**Pull published images:**
-```powershell
-docker pull ghcr.io/mainulhossain123/infra-autofix-agent-app:latest
-docker pull ghcr.io/mainulhossain123/infra-autofix-agent-bot:latest
-docker pull ghcr.io/mainulhossain123/infra-autofix-agent-frontend:latest
-```
-
-**Trigger manual deployment:**
-- Go to Actions → Deploy to Cloud → Run workflow
-- Select environment and version
-
-**Required GitHub Secrets for Deployment:**
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
-- `ECS_CLUSTER_NAME` (for ECS deployment)
-- `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (for VM deployment)
+- 📖 [API Reference](docs/API.md) - REST API endpoints and WebSocket events
+- 🐳 [Docker Commands](docs/docker.md) - Container management and troubleshooting
+- 🔧 [Operations Guide](docs/operations.md) - Configuration and maintenance
+- 📊 [Observability](docs/observability.md) - Metrics, logs, dashboards, alerts
+- 🚀 [GitHub Actions](docs/github-actions.md) - CI/CD workflows and deployment
+- 🤝 [Contributing](CONTRIBUTING.md) - Development guidelines and workflow
 
 ## License
 

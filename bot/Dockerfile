@@ -9,5 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy bot code
 COPY . .
 
-# Run the bot
-CMD ["python", "bot.py"]
+# Expose metrics port
+EXPOSE 8000
+
+# Run both the bot and metrics server
+CMD python metrics_server.py & python bot.py
