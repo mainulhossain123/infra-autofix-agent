@@ -1,6 +1,75 @@
 # Observability & Monitoring Guide
 
-Complete guide to the observability stack in infra-autofix-agent.
+Complete guide to monitoring your infra-autofix-agent with Prometheus, Grafana, and Loki.
+
+## 🚀 Quick Start for Beginners
+
+**New to monitoring? Start here!**
+
+### 1. Verify Everything is Running
+
+```powershell
+# Check all services are up
+docker compose ps
+
+# You should see these running:
+# ar_app, ar_bot, ar_frontend, ar_postgres
+# ar_prometheus, ar_grafana, ar_loki, ar_promtail
+```
+
+### 2. Open Your Monitoring Tools
+
+```powershell
+# Main dashboard (for daily use)
+start http://localhost:3001
+# Login: admin / admin
+
+# Metrics database (for detailed queries)
+start http://localhost:9090
+
+# Application frontend
+start http://localhost:3000
+```
+
+### 3. Your First 5 Minutes
+
+**In Grafana (http://localhost:3001):**
+1. Click **Dashboards** (four squares icon) → Select **"Infrastructure Auto-Fix Overview"**
+2. Watch real-time graphs update every 5 seconds
+3. Change time range (top-right) to see historical data
+4. Hover over graphs to see exact values
+
+**In Prometheus (http://localhost:9090):**
+1. Type `http_requests_total` in query box
+2. Click **Execute**
+3. Click **Graph** tab to visualize
+4. Try: `app_cpu_usage_percent` to see CPU usage
+
+### 4. Test the System
+
+Trigger a fake incident to see monitoring in action:
+
+```powershell
+# Simulate high CPU for 30 seconds
+curl -X POST http://localhost:5000/api/trigger/cpu-spike?duration=30
+
+# Now watch in Grafana:
+# - CPU graph should spike
+# - After ~5 minutes, alert might fire
+# - Bot should detect and log the issue
+```
+
+### 5. Common Tasks
+
+| Want to... | Where to Go | What to Do |
+|------------|-------------|------------|
+| See if system is healthy | Grafana → Infrastructure Overview | Check all graphs trending normal |
+| Find error logs | Grafana → Explore → Loki | Query: `{service="app"} \|= "ERROR"` |
+| Check bot activity | Grafana → Incident Analysis | View "Remediation Activity" panel |
+| Measure performance | Prometheus | Query: `histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))` |
+| View active alerts | Prometheus → Alerts | See red items = firing alerts |
+
+---
 
 ## Table of Contents
 
@@ -65,11 +134,27 @@ The observability stack consists of:
 
 ## Grafana Dashboards
 
-### Access
+### Quick Start (Step-by-Step)
 
-- **URL**: http://localhost:3001
-- **Username**: `admin`
-- **Password**: `admin` (change on first login)
+**1. Open Grafana:**
+```powershell
+# In your browser, navigate to:
+start http://localhost:3001
+```
+
+**2. Login:**
+- Username: `admin`
+- Password: `admin`
+- (You'll be prompted to change password on first login)
+
+**3. View Pre-built Dashboards:**
+- Click **Dashboards** icon (four squares) in left sidebar
+- Select **"Infrastructure Auto-Fix Overview"** or **"Incident & Remediation Analysis"**
+
+**4. Explore Data:**
+- Use time picker (top right) to change range: Last 5m, 15m, 1h, 6h, 24h
+- Click on any graph to zoom into that time period
+- Hover over data points to see exact values
 
 ### Pre-built Dashboards
 
@@ -134,12 +219,83 @@ rate(http_requests_total[5m])
 
 ## Prometheus Metrics
 
-### Access
+### Quick Start (Step-by-Step)
 
-- **URL**: http://localhost:9090
-- **Metrics endpoints**:
-  - App: http://localhost:5000/metrics
-  - Bot: http://localhost:8000/metrics
+**1. Open Prometheus:**
+```powershell
+start http://localhost:9090
+```
+
+**2. Check Targets (Verify Data Collection):**
+- Click **Status** → **Targets** in top menu
+- You should see:
+  - `app:5000/metrics` - State: **UP** ✅
+  - `bot:8000/metrics` - State: **UP** ✅
+- If "DOWN", check Docker containers are running: `docker compose ps`
+
+**3. Run Your First Query:**
+- Click **Query** in top menu
+- In the expression box, type: `http_requests_total`
+- Click **Execute** button
+- Click **Graph** tab to visualize
+
+**4. Try These Beginner-Friendly Queries:**
+
+```promql
+# How many requests per second?
+rate(http_requests_total[5m])
+
+# What's my app's memory usage in MB?
+app_memory_usage_bytes / 1024 / 1024
+
+# How many incidents have been detected?
+incidents_total
+
+# What's the error rate percentage?
+(rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m])) * 100
+```
+
+**5. Change Time Range:**
+- Use dropdown in top-right corner
+- Select: Last 5m, 15m, 1h, 6h, 24h, or custom range
+
+### Common Use Cases with Commands
+
+#### Use Case 1: Check if App is Running Normally
+
+**Query:**
+```promql
+up{job="app"}
+```
+**Result:** `1` = running, `0` = down
+
+#### Use Case 2: Find Performance Bottlenecks
+
+**Query for 95th percentile latency (slowest 5% of requests):**
+```promql
+histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+```
+**Good:** < 0.5 seconds | **Investigate:** > 1 second
+
+#### Use Case 3: Monitor Bot Activity
+
+**Query for remediations per minute:**
+```promql
+rate(remediation_actions_total[1m]) * 60
+```
+**Result:** Number of container restarts/fixes per minute
+
+#### Use Case 4: Detect High Error Rate
+
+**Query for error percentage:**
+```promql
+(
+  sum(rate(http_requests_total{status=~"5.."}[5m])) 
+  / 
+  sum(rate(http_requests_total[5m]))
+) * 100
+```
+**Alert if:** > 5%
 
 ### Available Metrics
 
@@ -247,10 +403,79 @@ http_requests_total{endpoint!="/health"}       # Exclude health
 
 ## Loki Logs
 
-### Access
+### Quick Start (Step-by-Step)
 
-- **URL**: http://localhost:3100
-- **Query in Grafana**: Explore → Select Loki data source
+**1. Open Grafana Explore:**
+```powershell
+start http://localhost:3001/explore
+```
+
+**2. Select Loki Data Source:**
+- In dropdown at top, select **"Loki"**
+
+**3. Run Your First Log Query:**
+- In the query box, type: `{service="app"}`
+- Click **Run query** button
+- You'll see live logs from your Flask application
+
+**4. Try These Useful Log Queries:**
+
+```logql
+# All error logs
+{service="app"} |= "ERROR"
+
+# Bot activity logs
+{service="bot"} |= "remediation"
+
+# Logs from last 5 minutes with "incident"
+{service="app"} |= "incident"
+
+# Count errors per minute
+rate({service="app"} |= "ERROR" [1m])
+```
+
+**5. Filter by Time:**
+- Use time picker in top-right
+- Select: Last 5m, 15m, 1h, 3h, or custom
+
+### Common Log Investigation Tasks
+
+#### Task 1: Find What Caused Recent Errors
+
+**Steps:**
+1. Open Grafana Explore → Select Loki
+2. Run query: `{service="app"} |= "ERROR"`
+3. Set time to "Last 15 minutes"
+4. Read error messages and stack traces
+5. Note timestamps for correlation with Prometheus metrics
+
+#### Task 2: Check if Bot Successfully Restarted Containers
+
+**Query:**
+```logql
+{service="bot"} |= "restart_container" |= "success"
+```
+
+**Look for log lines like:**
+```
+Successfully restarted container ar_app
+```
+
+#### Task 3: Monitor Real-time Application Activity
+
+**Query for live tail (updates automatically):**
+```logql
+{service="app"}
+```
+
+Click the **Live** button in top-right to enable live streaming logs.
+
+#### Task 4: Find Slow Database Queries
+
+**Query:**
+```logql
+{service="app"} |= "database_query_duration" | json | duration > 1.0
+```
 
 ### LogQL Query Language
 
@@ -300,6 +525,28 @@ limits_config:
 ---
 
 ## Alerting
+
+### Quick Start (Step-by-Step)
+
+**1. View Active Alerts in Prometheus:**
+```powershell
+start http://localhost:9090/alerts
+```
+
+**2. Check Alert Status:**
+- **Green (Inactive):** Everything normal
+- **Yellow (Pending):** Condition met but waiting for duration
+- **Red (Firing):** Alert triggered! Take action
+
+**3. Test an Alert:**
+
+Trigger high CPU (manual test):
+```powershell
+# In another terminal, trigger CPU spike
+curl -X POST http://localhost:5000/api/trigger/cpu-spike?duration=10
+```
+
+Then watch Prometheus alerts page - "HighCPUUsage" should turn yellow, then red.
 
 ### Configured Alerts
 
@@ -443,6 +690,144 @@ receivers:
 ---
 
 ## Troubleshooting
+
+### Common Issues with Step-by-Step Fixes
+
+#### Issue 1: Grafana Shows "No Data"
+
+**Symptom:** Dashboard panels are empty or show "No data"
+
+**Fix Steps:**
+```powershell
+# Step 1: Verify Grafana is running
+docker ps | Select-String grafana
+# Should show: ar_grafana ... Up
+
+# Step 2: Check Prometheus targets are UP
+start http://localhost:9090/targets
+# Both app:5000 and bot:8000 should show State: UP
+
+# Step 3: Test if metrics exist
+start http://localhost:9090
+# Run query: http_requests_total
+# Should return data
+
+# Step 4: Verify Grafana data source
+start http://localhost:3001/datasources
+# Prometheus should show green checkmark "Data source is working"
+
+# Step 5: If still broken, restart Grafana
+docker restart ar_grafana
+```
+
+#### Issue 2: Prometheus Not Collecting Metrics
+
+**Symptom:** Targets show "DOWN" in http://localhost:9090/targets
+
+**Fix Steps:**
+```powershell
+# Check if app/bot containers are running
+docker compose ps
+# Should show ar_app and ar_bot as "running"
+
+# Check app metrics endpoint
+curl http://localhost:5000/metrics
+# Should return Prometheus format metrics
+
+# Check bot metrics endpoint  
+curl http://localhost:8000/metrics
+# Should return Prometheus format metrics
+
+# If containers aren't running, restart stack
+docker compose restart
+
+# View container logs for errors
+docker logs ar_app
+docker logs ar_bot
+```
+
+#### Issue 3: Loki Logs Not Appearing
+
+**Symptom:** No logs in Grafana Explore when querying Loki
+
+**Fix Steps:**
+```powershell
+# Step 1: Check Loki is running
+docker ps | Select-String loki
+# Should show ar_loki and ar_promtail
+
+# Step 2: Check Loki health
+curl http://localhost:3100/ready
+# Should return "ready"
+
+# Step 3: Check Promtail is shipping logs
+docker logs ar_promtail
+# Should see: "Successfully sent batch"
+
+# Step 4: Restart Promtail if needed
+docker restart ar_promtail
+
+# Step 5: Verify Loki data source in Grafana
+start http://localhost:3001/datasources
+```
+
+#### Issue 4: Alerts Not Firing
+
+**Symptom:** High CPU but no alert showing in Prometheus
+
+**Fix Steps:**
+```powershell
+# Step 1: Check alert rules loaded
+start http://localhost:9090/rules
+# Should see list of alert rules
+
+# Step 2: Check if condition is actually met
+start http://localhost:9090
+# Run: app_cpu_usage_percent > 80
+# If returns nothing, CPU isn't actually high
+
+# Step 3: Manually trigger test
+curl -X POST http://localhost:5000/api/trigger/cpu-spike?duration=600
+# Wait 5 minutes, check alerts page
+
+# Step 4: Check Prometheus config
+docker exec ar_prometheus cat /etc/prometheus/prometheus.yml | Select-String alert
+```
+
+#### Issue 5: Container Keeps Restarting
+
+**Symptom:** `docker ps` shows container constantly restarting
+
+**Fix Steps:**
+```powershell
+# Check logs for error
+docker logs ar_app --tail 50
+
+# Common fixes:
+# 1. Database not ready - wait 30 seconds
+# 2. Port already in use - check: netstat -ano | Select-String 5000
+# 3. Config error - check .env file exists
+
+# Force rebuild if needed
+docker compose up --build ar_app
+```
+
+### Quick Diagnostic Commands
+
+**Full system health check:**
+```powershell
+# All containers running?
+docker compose ps
+
+# Any errors in logs?
+docker compose logs --tail 20
+
+# Check ports
+netstat -ano | Select-String "3000|5000|8000|9090|3001|3100"
+
+# Resource usage
+docker stats --no-stream
+```
 
 ### Grafana Issues
 
