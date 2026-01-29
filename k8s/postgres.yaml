@@ -9,7 +9,7 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: standard
+  storageClassName: hostpath
 ---
 apiVersion: apps/v1
 kind: StatefulSet

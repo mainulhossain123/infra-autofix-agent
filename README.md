@@ -19,21 +19,28 @@
 
 ## Quick Start
 
+> **📘 New to the project?** See the [Complete Quick Start Guide](docs/quick-start.md) with step-by-step instructions, screenshots, and troubleshooting.
+
 ### Prerequisites
 
 - **Docker Compose**: Docker 20.10+, Docker Compose 2.0+
 - **Kubernetes** (optional): kubectl, Helm 3.0+, K8s cluster 1.20+
 - **Local Development** (optional): Python 3.11+, Node.js 18+
 
-### Option 1: Run with Docker Compose (Easiest)
+### Option 1: Run with Docker Compose (Recommended for First-Time Users)
 
 ```bash
 git clone https://github.com/mainulhossain123/infra-autofix-agent.git
 cd infra-autofix-agent
-docker compose up --build -d
+docker compose up -d
+
+# Access services at:
+# Dashboard: http://localhost:3000
+# Grafana: http://localhost:3001 (admin/admin)
+# API: http://localhost:5000
 ```
 
-### Option 2: Deploy to Kubernetes
+### Option 2: Deploy to Kubernetes (Production-Ready)
 
 **With Helm:**
 ```bash
@@ -53,20 +60,29 @@ helm install infra-autofix ./helm/infra-autofix \
 **With kubectl:**
 ```bash
 kubectl apply -k k8s/
+
+# Access services at (Docker Desktop):
+# Dashboard: http://localhost
+# Grafana: http://localhost:3000 (admin/admin)
+# API: http://localhost:5000
 ```
 
 **Or use deployment script:**
 ```bash
 # PowerShell
-.\scripts\deploy-k8s.ps1 -Method helm -Environment prod
+.\scripts\deploy-k8s.ps1 -Method helm -Environment dev
 
 # Bash
-./scripts/deploy-k8s.sh helm prod
+./scripts/deploy-k8s.sh helm dev
 ```
+
+> **⚠️ Important**: Grafana dashboards need to be imported manually in Kubernetes. See [Quick Start Guide](docs/quick-start.md#6-configure-grafana-dashboards).
 
 See [Kubernetes Deployment Guide](docs/kubernetes.md) for detailed instructions.
 
 ### Access Interfaces
+
+**Docker Compose (Local Development):**
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
@@ -75,6 +91,17 @@ See [Kubernetes Deployment Guide](docs/kubernetes.md) for detailed instructions.
 | API Docs | http://localhost:5000 | - |
 | Prometheus | http://localhost:9090 | - |
 | Loki | http://localhost:3100 | - |
+
+**Kubernetes (Docker Desktop):**
+
+| Service | URL | Credentials | Purpose |
+|---------|-----|-------------|---------|
+| Frontend Dashboard | http://localhost | - | Main monitoring UI |
+| Backend API | http://localhost:5000 | - | REST API + WebSocket |
+| Grafana | http://localhost:3000 | admin/admin | Dashboards & alerting |
+| Prometheus | http://localhost:9090 | - | Metrics database |
+
+> **Note**: Kubernetes on Docker Desktop automatically maps LoadBalancer services to localhost. No port-forwarding needed!
 
 ## Architecture
 
@@ -203,12 +230,13 @@ See [docs/github-actions.md](docs/github-actions.md) for details.
 
 ## Documentation
 
+- � **[Quick Start Guide](docs/quick-start.md)** - Step-by-step setup for both Docker Compose and Kubernetes
 - 📖 [API Reference](docs/API.md) - REST API endpoints and WebSocket events
 - 🐳 [Docker Commands](docs/docker.md) - Container management and troubleshooting
-- ☸️ [Kubernetes Deployment](docs/kubernetes.md) - K8s manifests and Helm charts
-- 🔧 [Operations Guide](docs/operations.md) - Configuration and maintenance
-- 📊 [Observability](docs/observability.md) - Metrics, logs, dashboards, alerts
-- 🚀 [GitHub Actions](docs/github-actions.md) - CI/CD workflows and deployment
+- ☸️ [Kubernetes Deployment](docs/kubernetes.md) - K8s manifests, Helm charts, and production best practices
+- 🔧 [Operations Guide](docs/operations.md) - Configuration, testing, and maintenance
+- 📊 [Observability](docs/observability.md) - Metrics, logs, dashboards, alerts, and troubleshooting
+- 🚀 [GitHub Actions](docs/github-actions.md) - CI/CD workflows and deployment pipelines
 - 🤝 [Contributing](CONTRIBUTING.md) - Development guidelines and workflow
 
 ## License

@@ -1,6 +1,16 @@
 #!/usr/bin/env pwsh
 # Kubernetes deployment script for infra-autofix-agent
 # Usage: .\deploy-k8s.ps1 [-Method manifest|helm] [-Environment dev|staging|prod]
+#
+# Examples:
+#   .\deploy-k8s.ps1                                    # Default: Helm, dev environment
+#   .\deploy-k8s.ps1 -Method helm -Environment dev      # Helm deployment to dev
+#   .\deploy-k8s.ps1 -Method manifest                   # Raw K8s manifests
+#
+# After deployment, access services:
+#   Docker Desktop: http://localhost (Frontend), http://localhost:5000 (API)
+#                   http://localhost:3000 (Grafana), http://localhost:9090 (Prometheus)
+#   Other K8s: Use port-forwarding (see docs/kubernetes.md)
 
 param(
     [Parameter(Mandatory=$false)]
@@ -87,7 +97,6 @@ if ($Method -eq 'manifest') {
     kubectl apply -f k8s/loki-promtail.yaml
     
     $namespace = "infra-autofix"
-    
 } elseif ($Method -eq 'helm') {
     Write-Host "`n🎯 Deploying with Helm..." -ForegroundColor Yellow
     

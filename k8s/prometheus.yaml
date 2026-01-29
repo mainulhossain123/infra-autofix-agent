@@ -9,7 +9,7 @@ spec:
   resources:
     requests:
       storage: 20Gi
-  storageClassName: standard
+  storageClassName: hostpath
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -162,7 +162,7 @@ spec:
   - port: 9090
     targetPort: 9090
     protocol: TCP
-  type: ClusterIP
+  type: LoadBalancer
 ---
 apiVersion: v1
 kind: ServiceAccount

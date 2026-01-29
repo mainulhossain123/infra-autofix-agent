@@ -2,6 +2,8 @@
 
 Complete guide to deploying infra-autofix-agent on Kubernetes with raw manifests or Helm.
 
+> **💡 Docker Desktop Users**: This deployment is optimized for Docker Desktop Kubernetes. All services use LoadBalancer type which Docker Desktop maps to `localhost` automatically. No port-forwarding needed!
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -10,6 +12,16 @@ Complete guide to deploying infra-autofix-agent on Kubernetes with raw manifests
 - `kubectl` CLI installed and configured
 - (For Helm) Helm 3.0+ installed
 - (Optional) Ingress controller (nginx-ingress recommended)
+
+#### Docker Desktop Setup
+
+1. Open Docker Desktop Settings
+2. Go to **Kubernetes** tab
+3. Check **Enable Kubernetes**
+4. Select **Kubeadm** (recommended for simplicity)
+5. Click **Apply & Restart**
+6. Wait 2-5 minutes for Kubernetes to start
+7. Verify: `kubectl cluster-info`
 
 ### Verify Cluster Access
 
@@ -112,20 +124,76 @@ kubectl get all -n infra-autofix
 ### Step 7: Access Applications
 
 ```powershell
-# Get external IPs
+# Get external IPs (Docker Desktop maps to localhost)
 kubectl get svc -n infra-autofix
-
-# Port forward for local access (if LoadBalancer not available)
-kubectl port-forward svc/frontend 3000:80 -n infra-autofix &
-kubectl port-forward svc/app 5000:5000 -n infra-autofix &
-kubectl port-forward svc/grafana 3001:3000 -n infra-autofix &
-kubectl port-forward svc/prometheus 9090:9090 -n infra-autofix &
-
-# Open in browser
-start http://localhost:3000  # Frontend
-start http://localhost:3001  # Grafana
-start http://localhost:9090  # Prometheus
 ```
+
+**Docker Desktop - Direct Access (No Port-Forwarding Needed!):**
+
+| Service | URL | Credentials | Purpose |
+|---------|-----|-------------|----------|
+| **Frontend Dashboard** | http://localhost | - | Main monitoring UI, incidents, remediation |
+| **Backend API** | http://localhost:5000 | - | REST API, WebSocket, metrics |
+| **Grafana** | http://localhost:3000 | admin/admin | Dashboards, visualization, alerting |
+| **Prometheus** | http://localhost:9090 | - | Metrics database, PromQL queries |
+
+```powershell
+# Open in browser
+start http://localhost        # Frontend Dashboard
+start http://localhost:3000   # Grafana
+start http://localhost:9090   # Prometheus
+start http://localhost:5000/health  # API Health Check
+```
+
+**Other Kubernetes Providers (Minikube, Cloud):**
+
+If LoadBalancer shows `<pending>`, use port-forwarding:
+
+```powershell
+kubectl port-forward svc/frontend 80:80 -n infra-autofix &
+kubectl port-forward svc/app 5000:5000 -n infra-autofix &
+kubectl port-forward svc/grafana 3000:3000 -n infra-autofix &
+kubectl port-forward svc/prometheus 9090:9090 -n infra-autofix &
+```
+
+### Step 8: Setup Grafana Dashboards (First-Time Only)
+
+> **⚠️ Important**: Unlike Docker Compose, Kubernetes deployment requires manual dashboard import.
+
+Grafana datasources (Prometheus & Loki) are automatically configured, but dashboards need to be imported:
+
+**Method 1: Import via UI (Recommended)**
+
+1. Open Grafana: http://localhost:3000
+2. Login with: `admin` / `admin` (change password when prompted)
+3. Click **+** (plus icon) → **Import dashboard**
+4. Click **Upload JSON file**
+5. Import both dashboards from your local `grafana/dashboards/` folder:
+   - `overview.json` - System Overview Dashboard
+   - `incidents.json` - Incidents Analytics Dashboard
+6. Select **Prometheus** as the datasource when prompted
+7. Click **Import**
+
+**Method 2: Copy Dashboards to Pod**
+
+```powershell
+# Get Grafana pod name
+$GRAFANA_POD = kubectl get pods -n infra-autofix -l app=grafana -o jsonpath='{.items[0].metadata.name}'
+
+# Copy dashboards to pod
+kubectl cp ./grafana/dashboards/overview.json $GRAFANA_POD:/var/lib/grafana/dashboards/ -n infra-autofix
+kubectl cp ./grafana/dashboards/incidents.json $GRAFANA_POD:/var/lib/grafana/dashboards/ -n infra-autofix
+
+# Restart Grafana to pick up dashboards
+kubectl rollout restart deployment/grafana -n infra-autofix
+```
+
+**Verify Dashboards:**
+
+1. Go to Grafana → **Dashboards** → **Browse**
+2. You should see:
+   - **System Overview** - Real-time metrics, service health, resource usage
+   - **Incidents Dashboard** - Incident trends, remediation actions, error analysis
 
 ---
 
@@ -270,6 +338,52 @@ kubectl rollout undo deployment/app -n infra-autofix
 
 ## Monitoring & Troubleshooting
 
+### Docker Desktop Specific Issues
+
+**PersistentVolumeClaims Stuck in Pending:**
+
+Docker Desktop uses `hostpath` StorageClass by default. Our manifests are configured for this.
+
+```powershell
+# Check StorageClass
+kubectl get storageclass
+# Should show: hostpath (default)
+
+# Check PVC status
+kubectl get pvc -n infra-autofix
+# All should show STATUS: Bound
+
+# If PVCs are Pending, check the storageClassName in manifests
+kubectl describe pvc postgres-pvc -n infra-autofix
+```
+
+**Services Not Accessible:**
+
+```powershell
+# Verify services have EXTERNAL-IP set to localhost
+kubectl get svc -n infra-autofix
+
+# For LoadBalancer services, Docker Desktop should show:
+# EXTERNAL-IP: localhost
+
+# If showing <pending>, the service type needs to be LoadBalancer:
+kubectl patch svc app -n infra-autofix -p '{"spec":{"type":"LoadBalancer"}}'
+kubectl patch svc prometheus -n infra-autofix -p '{"spec":{"type":"LoadBalancer"}}'
+```
+
+**Frontend Can't Reach Backend API:**
+
+Ensure the app service is type LoadBalancer (not ClusterIP):
+
+```powershell
+kubectl get svc app -n infra-autofix
+# Should show: TYPE=LoadBalancer, EXTERNAL-IP=localhost, PORT(S)=5000:xxxxx/TCP
+
+# Test API from your machine
+curl http://localhost:5000/health
+# Should return: {"status":"healthy",...}
+```
+
 ### Check Pod Logs
 
 ```powershell
@@ -298,6 +412,54 @@ kubectl get events -n infra-autofix --sort-by='.lastTimestamp'
 # Check resource usage
 kubectl top pods -n infra-autofix
 kubectl top nodes
+```
+
+### Verify Local Testing
+
+**Quick Health Check (PowerShell):**
+
+```powershell
+# Test all services
+Invoke-WebRequest -Uri "http://localhost/" -UseBasicParsing
+Invoke-WebRequest -Uri "http://localhost:5000/health" -UseBasicParsing
+Invoke-WebRequest -Uri "http://localhost:3000/api/health" -UseBasicParsing
+Invoke-WebRequest -Uri "http://localhost:9090/-/healthy" -UseBasicParsing
+
+# All should return: StatusCode 200
+```
+
+**Test Data Flow:**
+
+```powershell
+# 1. Check if metrics are being collected
+curl http://localhost:5000/metrics
+
+# 2. Query Prometheus for app metrics
+curl "http://localhost:9090/api/v1/query?query=up"
+
+# 3. Check Grafana datasources
+curl -u admin:admin http://localhost:3000/api/datasources
+
+# 4. Trigger a test incident (CPU spike)
+curl -X POST "http://localhost:5000/api/trigger/cpu-spike?duration=30"
+
+# 5. Watch in Grafana: http://localhost:3000
+```
+
+**Watch Deployment in Real-Time:**
+
+```powershell
+# Terminal 1: Watch pods
+kubectl get pods -n infra-autofix --watch
+
+# Terminal 2: Watch services
+kubectl get svc -n infra-autofix --watch
+
+# Terminal 3: Follow app logs
+kubectl logs -f deployment/app -n infra-autofix
+
+# Terminal 4: Follow bot logs  
+kubectl logs -f deployment/bot -n infra-autofix
 ```
 
 ### Debug Failing Pods
@@ -491,6 +653,102 @@ kubectl get svc frontend -n infra-autofix
 
 # Enable Azure monitoring
 az aks enable-addons --resource-group <rg> --name <cluster> --addons monitoring
+```
+
+---
+
+## Complete Testing Checklist
+
+### ✅ Pre-Deployment Verification
+
+```powershell
+# 1. Verify Kubernetes cluster is running
+kubectl cluster-info
+kubectl get nodes
+
+# 2. Check available storage classes (Docker Desktop should show 'hostpath')
+kubectl get storageclass
+
+# 3. Ensure correct context
+kubectl config current-context
+```
+
+### ✅ Post-Deployment Verification
+
+```powershell
+# 1. Check all pods are Running (1/1 READY)
+kubectl get pods -n infra-autofix
+
+# 2. Verify all PVCs are Bound
+kubectl get pvc -n infra-autofix
+
+# 3. Check services have correct EXTERNAL-IP (localhost for Docker Desktop)
+kubectl get svc -n infra-autofix
+
+# 4. Test each service endpoint
+Invoke-WebRequest http://localhost/ -UseBasicParsing              # Frontend (200 OK)
+Invoke-WebRequest http://localhost:5000/health -UseBasicParsing   # API (200 OK)
+Invoke-WebRequest http://localhost:3000/api/health -UseBasicParsing  # Grafana (200 OK)
+Invoke-WebRequest http://localhost:9090/-/healthy -UseBasicParsing   # Prometheus (200 OK)
+
+# 5. Verify metrics collection
+curl http://localhost:5000/metrics  # Should return Prometheus metrics
+
+# 6. Check Prometheus targets
+# Open http://localhost:9090/targets
+# All targets should show UP status
+
+# 7. Verify Grafana datasources
+curl -u admin:admin http://localhost:3000/api/datasources
+# Should list Prometheus and Loki
+
+# 8. Test incident flow
+curl -X POST "http://localhost:5000/api/trigger/cpu-spike?duration=30"
+# Watch in dashboard: http://localhost
+
+# 9. Check logs are flowing to Loki
+# Open Grafana → Explore → Select Loki → Run query: {app="app"}
+
+# 10. Verify HPA is working
+kubectl get hpa -n infra-autofix
+# Should show current CPU/memory metrics
+```
+
+### ✅ Troubleshooting Failed Checks
+
+**Pods not Running:**
+```powershell
+kubectl describe pod <pod-name> -n infra-autofix
+kubectl logs <pod-name> -n infra-autofix
+kubectl get events -n infra-autofix --sort-by='.lastTimestamp'
+```
+
+**PVCs Pending:**
+```powershell
+# Check if StorageClass exists
+kubectl get storageclass
+
+# For Docker Desktop, ensure manifests use 'hostpath'
+kubectl describe pvc <pvc-name> -n infra-autofix
+```
+
+**Services not accessible:**
+```powershell
+# Ensure services are LoadBalancer type with localhost
+kubectl get svc -n infra-autofix -o wide
+
+# If needed, patch to LoadBalancer
+kubectl patch svc <service-name> -n infra-autofix -p '{"spec":{"type":"LoadBalancer"}}'
+```
+
+**Frontend shows "Error Loading Dashboard":**
+```powershell
+# Check if backend API is accessible from your browser
+curl http://localhost:5000/health
+
+# Verify app service is LoadBalancer (not ClusterIP)
+kubectl get svc app -n infra-autofix
+# Must show: TYPE=LoadBalancer, EXTERNAL-IP=localhost
 ```
 
 ---

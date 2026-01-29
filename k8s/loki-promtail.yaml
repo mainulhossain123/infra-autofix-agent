@@ -9,7 +9,7 @@ spec:
   resources:
     requests:
       storage: 20Gi
-  storageClassName: standard
+  storageClassName: hostpath
 ---
 apiVersion: v1
 kind: ConfigMap
