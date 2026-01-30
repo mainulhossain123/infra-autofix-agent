@@ -4,6 +4,7 @@
 
 ## Services
 - **app** - Flask backend (port 5000)
+  - **Interactive API Documentation**: http://localhost:5000/api/docs (Swagger UI)
 - **frontend** - React dashboard (port 3000)
 - **postgres** - PostgreSQL database (port 5432)
 - **bot** - Auto-remediation worker (port 8000 for metrics)

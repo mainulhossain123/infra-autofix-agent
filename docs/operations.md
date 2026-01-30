@@ -41,12 +41,14 @@ kubectl get pods -n infra-autofix --watch
 **Docker Compose:**
 - Dashboard: http://localhost:3000
 - API: http://localhost:5000
+- **Swagger API Docs**: http://localhost:5000/api/docs
 - Grafana: http://localhost:3001
 - Prometheus: http://localhost:9090
 
 **Kubernetes (Docker Desktop):**
 - Frontend Dashboard: http://localhost (port 80)
 - Backend API: http://localhost:5000
+- **Swagger API Docs**: http://localhost:5000/api/docs
 - Grafana: http://localhost:3000
 - Prometheus: http://localhost:9090
 

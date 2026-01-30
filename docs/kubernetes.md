@@ -134,6 +134,7 @@ kubectl get svc -n infra-autofix
 |---------|-----|-------------|----------|
 | **Frontend Dashboard** | http://localhost | - | Main monitoring UI, incidents, remediation |
 | **Backend API** | http://localhost:5000 | - | REST API, WebSocket, metrics |
+| **Swagger API Docs** | http://localhost:5000/api/docs | - | Interactive API documentation |
 | **Grafana** | http://localhost:3000 | admin/admin | Dashboards, visualization, alerting |
 | **Prometheus** | http://localhost:9090 | - | Metrics database, PromQL queries |
 

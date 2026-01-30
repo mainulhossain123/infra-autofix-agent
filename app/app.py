@@ -12,6 +12,7 @@ import psutil
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flasgger import Swagger
 from sqlalchemy import desc, and_
 
 from config import Config
@@ -39,6 +40,69 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)  # Enable CORS for frontend
+
+# Initialize Swagger UI
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'apispec',
+            "route": '/apispec.json',
+            "rule_filter": lambda rule: True,
+            "model_filter": lambda tag: True,
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/api/docs"
+}
+
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Auto-Remediation Platform API",
+        "description": "REST API for infrastructure auto-remediation, monitoring, and incident management. "
+                      "This API provides endpoints for health checks, incident tracking, remediation actions, "
+                      "configuration management, and real-time metrics via WebSocket.",
+        "contact": {
+            "name": "API Support",
+            "url": "https://github.com/mainulhossain123/infra-autofix-agent"
+        },
+        "version": "1.0.0"
+    },
+    "host": os.getenv("SWAGGER_HOST", "localhost:5000"),
+    "basePath": "/",
+    "schemes": ["http", "https"],
+    "securityDefinitions": {},
+    "tags": [
+        {
+            "name": "Health",
+            "description": "Health check and service status endpoints"
+        },
+        {
+            "name": "Incidents",
+            "description": "Incident tracking and management"
+        },
+        {
+            "name": "Remediation",
+            "description": "Remediation actions and history"
+        },
+        {
+            "name": "Configuration",
+            "description": "System configuration and thresholds"
+        },
+        {
+            "name": "Metrics",
+            "description": "Prometheus metrics and monitoring"
+        },
+        {
+            "name": "Triggers",
+            "description": "Manual incident triggers for testing"
+        }
+    ]
+}
+
+swagger = Swagger(app, config=swagger_config, template=swagger_template)
 
 # Initialize WebSocket
 socketio = init_socketio(app)
@@ -125,8 +189,72 @@ def index():
 @app.route('/api/health')
 def health():
     """
-    Detailed health check with metrics.
-    Returns current system state and metrics.
+    Health Check Endpoint
+    ---
+    tags:
+      - Health
+    summary: Get application health status and metrics
+    description: Returns detailed health information including system metrics, request counts, error rates, and response times
+    responses:
+      200:
+        description: Health check successful
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: ok
+            service:
+              type: string
+              example: auto-remediation-app
+            timestamp:
+              type: string
+              format: date-time
+            uptime_seconds:
+              type: integer
+              example: 3600
+            metrics:
+              type: object
+              properties:
+                total_requests:
+                  type: integer
+                  example: 1234
+                total_errors:
+                  type: integer
+                  example: 5
+                error_rate:
+                  type: number
+                  format: float
+                  example: 0.0041
+                cpu_usage_percent:
+                  type: number
+                  format: float
+                  example: 45.32
+                memory_usage_mb:
+                  type: number
+                  format: float
+                  example: 128.5
+                response_time_p50_ms:
+                  type: number
+                  format: float
+                  example: 15.2
+                response_time_p95_ms:
+                  type: number
+                  format: float
+                  example: 45.8
+                response_time_p99_ms:
+                  type: number
+                  format: float
+                  example: 98.5
+            flags:
+              type: object
+              properties:
+                cpu_spike:
+                  type: boolean
+                  example: false
+                error_spike:
+                  type: boolean
+                  example: false
     """
     error_rate = app_state['errors'] / app_state['requests'] if app_state['requests'] > 0 else 0
     uptime = int(time.time() - app_state['start_time'])
@@ -277,14 +405,79 @@ def receive_alert():
 @app.route('/api/incidents')
 def get_incidents():
     """
-    Get list of incidents with filtering and pagination.
-    Query params:
-        - status: filter by status (ACTIVE, RESOLVED, ESCALATED)
-        - severity: filter by severity (CRITICAL, WARNING, INFO)
-        - type: filter by incident type
-        - limit: number of results (default 50)
-        - offset: pagination offset (default 0)
-        - hours: filter incidents from last N hours (default 24)
+    List Incidents
+    ---
+    tags:
+      - Incidents
+    summary: Get list of incidents with filtering and pagination
+    description: Retrieve incidents with optional filters for status, severity, type, and time range
+    parameters:
+      - name: status
+        in: query
+        type: string
+        enum: [ACTIVE, RESOLVED, ESCALATED]
+        description: Filter by incident status
+      - name: severity
+        in: query
+        type: string
+        enum: [CRITICAL, WARNING, INFO]
+        description: Filter by severity level
+      - name: type
+        in: query
+        type: string
+        description: Filter by incident type (e.g., CPU_SPIKE, ERROR_SPIKE)
+      - name: limit
+        in: query
+        type: integer
+        default: 50
+        description: Maximum number of results to return
+      - name: offset
+        in: query
+        type: integer
+        default: 0
+        description: Pagination offset
+      - name: hours
+        in: query
+        type: integer
+        default: 24
+        description: Filter incidents from last N hours
+    responses:
+      200:
+        description: List of incidents
+        schema:
+          type: object
+          properties:
+            total:
+              type: integer
+              example: 42
+            limit:
+              type: integer
+              example: 50
+            offset:
+              type: integer
+              example: 0
+            incidents:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  type:
+                    type: string
+                  severity:
+                    type: string
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  description:
+                    type: string
+                  metadata:
+                    type: object
+      500:
+        description: Server error
     """
     db = get_db_session()
     try:
@@ -440,8 +633,47 @@ def manual_remediation():
 @app.route('/api/config')
 def get_config():
     """
-    Get all configuration entries in a structured format.
-    Returns configuration organized by category for the frontend.
+    Get Configuration
+    ---
+    tags:
+      - Configuration
+    summary: Get all configuration entries
+    description: Returns current system configuration including thresholds and circuit breaker settings
+    responses:
+      200:
+        description: Configuration retrieved successfully
+        schema:
+          type: object
+          properties:
+            thresholds:
+              type: object
+              properties:
+                cpu_warning:
+                  type: integer
+                  example: 70
+                cpu_critical:
+                  type: integer
+                  example: 80
+                error_rate_threshold:
+                  type: number
+                  example: 0.2
+                response_time_threshold_ms:
+                  type: integer
+                  example: 500
+            circuit_breaker:
+              type: object
+              properties:
+                failure_threshold:
+                  type: integer
+                  example: 3
+                timeout_seconds:
+                  type: integer
+                  example: 60
+                half_open_retry_delay:
+                  type: integer
+                  example: 30
+      500:
+        description: Server error
     """
     db = get_db_session()
     try:
@@ -602,7 +834,35 @@ def crash():
 @app.route('/spike/cpu', methods=['POST'])
 @app.route('/api/spike/cpu', methods=['POST'])
 def spike_cpu():
-    """Trigger CPU spike simulation (manual trigger for demo/testing)"""
+    """
+    Trigger CPU Spike
+    ---
+    tags:
+      - Triggers
+    summary: Manually trigger a CPU spike for testing
+    description: Simulates high CPU usage for a specified duration. Used for testing auto-remediation
+    parameters:
+      - name: duration
+        in: query
+        type: integer
+        default: 10
+        description: Duration of CPU spike in seconds
+    responses:
+      200:
+        description: CPU spike triggered successfully
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: triggered
+            message:
+              type: string
+              example: CPU spike triggered for 10 seconds
+            duration:
+              type: integer
+              example: 10
+    """
     from simulate import cpu_burn
     
     duration = int(request.args.get('duration', 10))

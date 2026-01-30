@@ -87,8 +87,9 @@ See [Kubernetes Deployment Guide](docs/kubernetes.md) for detailed instructions.
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | React Dashboard | http://localhost:3000 | - |
+| **Swagger API Docs** | **http://localhost:5000/api/docs** | - |
 | Grafana | http://localhost:3001 | admin/admin |
-| API Docs | http://localhost:5000 | - |
+| Backend API | http://localhost:5000 | - |
 | Prometheus | http://localhost:9090 | - |
 | Loki | http://localhost:3100 | - |
 
@@ -97,6 +98,7 @@ See [Kubernetes Deployment Guide](docs/kubernetes.md) for detailed instructions.
 | Service | URL | Credentials | Purpose |
 |---------|-----|-------------|---------|
 | Frontend Dashboard | http://localhost | - | Main monitoring UI |
+| **Swagger API Docs** | **http://localhost:5000/api/docs** | - | **Interactive API documentation** |
 | Backend API | http://localhost:5000 | - | REST API + WebSocket |
 | Grafana | http://localhost:3000 | admin/admin | Dashboards & alerting |
 | Prometheus | http://localhost:9090 | - | Metrics database |

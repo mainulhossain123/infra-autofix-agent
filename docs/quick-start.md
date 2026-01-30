@@ -45,6 +45,7 @@ ar_promtail        Up
 |---------|-----|-------------|-------------|
 | **React Dashboard** | [http://localhost:3000](http://localhost:3000) | None | Main monitoring UI, incidents, remediation history |
 | **Backend API** | [http://localhost:5000](http://localhost:5000) | None | REST API, health endpoints, metrics |
+| **API Documentation** | [http://localhost:5000/api/docs](http://localhost:5000/api/docs) | None | **Swagger UI** - Interactive API docs & testing |
 | **API Health** | [http://localhost:5000/health](http://localhost:5000/health) | None | Backend health check |
 | **Prometheus Metrics** | [http://localhost:5000/metrics](http://localhost:5000/metrics) | None | Application metrics endpoint |
 | **Grafana** | [http://localhost:3001](http://localhost:3001) | admin / admin | Dashboards, visualization, alerting |
@@ -84,7 +85,15 @@ All should return `StatusCode : 200`
 4. Open **System Overview** dashboard
 5. Open **Incidents Dashboard** for detailed analytics
 
-**C. Query Prometheus**
+**C. Explore API with Swagger UI**
+1. Go to [http://localhost:5000/api/docs](http://localhost:5000/api/docs)
+2. Browse all available endpoints organized by category
+3. Click **Try it out** on any endpoint
+4. Fill in parameters and click **Execute**
+5. See real-time request/response data
+6. Test incidents, configuration, and trigger endpoints
+
+**D. Query Prometheus**
 1. Go to [http://localhost:9090](http://localhost:9090)
 2. Try these queries:
    - `up` - See which services are up
@@ -233,6 +242,7 @@ prometheus   LoadBalancer   localhost     9090:xxxxx/TCP
 |---------|-----|-------------|-------------|
 | **React Dashboard** | [http://localhost](http://localhost) | None | Main monitoring UI (port 80) |
 | **Backend API** | [http://localhost:5000](http://localhost:5000) | None | REST API, WebSocket server |
+| **API Documentation** | [http://localhost:5000/api/docs](http://localhost:5000/api/docs) | None | **Swagger UI** - Interactive API docs |
 | **API Health** | [http://localhost:5000/health](http://localhost:5000/health) | None | Backend health check |
 | **Prometheus Metrics** | [http://localhost:5000/metrics](http://localhost:5000/metrics) | None | Application metrics |
 | **Grafana** | [http://localhost:3000](http://localhost:3000) | admin / admin | Dashboards, alerting |
