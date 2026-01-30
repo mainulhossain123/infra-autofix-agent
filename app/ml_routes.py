@@ -566,6 +566,282 @@ def get_anomaly_scores():
         }), 500
 
 
+# ==================== Forecasting Endpoints ====================
+
+@ml_bp.route('/train/forecaster', methods=['POST'])
+def train_forecaster():
+    """
+    Train Prophet forecaster models for metrics.
+    Request body:
+        - metrics: List of metrics to forecast (optional, default: all)
+        - hours_ahead: Forecast horizon (optional, default: 6)
+    """
+    try:
+        from bot.ml.forecaster import MetricForecaster
+        
+        data = request.get_json() or {}
+        metrics = data.get('metrics')
+        
+        # Load training data
+        db = get_db_session()
+        try:
+            query = "SELECT * FROM metrics_history ORDER BY timestamp"
+            result = db.execute(text(query))
+            rows = result.fetchall()
+            columns = result.keys()
+            
+            if len(rows) < 1000:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Need at least 1000 samples for forecasting, got {len(rows)}'
+                }), 400
+            
+            df = pd.DataFrame(rows, columns=columns)
+            
+            logger.info(f"Training forecaster on {len(df)} samples...")
+            
+            # Train forecaster
+            forecaster = MetricForecaster()
+            training_stats = forecaster.train(df, metrics=metrics)
+            
+            # Save model
+            model_path = '/app/data/models/forecaster_latest.joblib'
+            forecaster.save(model_path)
+            
+            # Save metadata to database
+            db.execute(text("""
+                INSERT INTO ml_models (name, version, model_type, status, performance_metrics,
+                                      training_samples, trained_at, file_path, is_active)
+                VALUES (:name, :version, :model_type, :status, :performance_metrics,
+                       :training_samples, :trained_at, :file_path, :is_active)
+            """), {
+                'name': 'forecaster',
+                'version': datetime.now().strftime('%Y%m%d_%H%M%S'),
+                'model_type': 'prophet',
+                'status': 'active',
+                'performance_metrics': str(training_stats),
+                'training_samples': len(df),
+                'trained_at': datetime.now(),
+                'file_path': model_path,
+                'is_active': True
+            })
+            db.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Forecaster trained successfully',
+                'training_stats': training_stats,
+                'model_path': model_path
+            })
+            
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Error training forecaster: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/forecast', methods=['GET'])
+def get_forecast():
+    """
+    Get forecast for specified metrics.
+    Query params:
+        - hours_ahead: Forecast horizon (1-24, default: 6)
+        - metric: Specific metric to forecast (optional, default: all)
+    """
+    try:
+        from bot.ml.forecaster import MetricForecaster
+        
+        hours_ahead = int(request.args.get('hours_ahead', 6))
+        metric = request.args.get('metric')
+        
+        if not (1 <= hours_ahead <= 24):
+            return jsonify({'error': 'hours_ahead must be between 1 and 24'}), 400
+        
+        # Load model
+        model_path = '/app/data/models/forecaster_latest.joblib'
+        
+        try:
+            forecaster = MetricForecaster.load(model_path)
+        except FileNotFoundError:
+            return jsonify({
+                'status': 'error',
+                'message': 'No trained forecaster found. Train first using /api/ml/train/forecaster'
+            }), 404
+        
+        # Generate forecast
+        if metric:
+            if metric not in forecaster.models:
+                return jsonify({'error': f'No model for metric: {metric}'}), 400
+            
+            forecast_df = forecaster.forecast_single_metric(metric, hours_ahead)
+            
+            # Store forecasts in database
+            db = get_db_session()
+            try:
+                for _, row in forecast_df.iterrows():
+                    db.execute(text("""
+                        INSERT INTO metric_forecasts (metric_name, forecast_timestamp, 
+                                                      forecasted_value, lower_bound, upper_bound,
+                                                      created_at, horizon_hours)
+                        VALUES (:metric, :timestamp, :forecast, :lower, :upper, :created, :horizon)
+                    """), {
+                        'metric': metric,
+                        'timestamp': row['timestamp'],
+                        'forecast': float(row['forecast']),
+                        'lower': float(row['lower_bound']),
+                        'upper': float(row['upper_bound']),
+                        'created': datetime.now(),
+                        'horizon': hours_ahead
+                    })
+                db.commit()
+            finally:
+                db.close()
+            
+            result = forecast_df.to_dict('records')
+        else:
+            forecast_df = forecaster.forecast(hours_ahead)
+            result = forecast_df.to_dict('records')
+        
+        # Convert timestamps to ISO format
+        for item in result:
+            if 'timestamp' in item:
+                item['timestamp'] = item['timestamp'].isoformat()
+        
+        return jsonify({
+            'status': 'success',
+            'forecast': result,
+            'hours_ahead': hours_ahead,
+            'generated_at': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating forecast: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/forecast/next-hour', methods=['GET'])
+def get_next_hour_forecast():
+    """
+    Get average predicted values for next hour (quick summary).
+    """
+    try:
+        from bot.ml.forecaster import MetricForecaster
+        
+        model_path = '/app/data/models/forecaster_latest.joblib'
+        
+        try:
+            forecaster = MetricForecaster.load(model_path)
+        except FileNotFoundError:
+            return jsonify({
+                'status': 'error',
+                'message': 'No trained forecaster found'
+            }), 404
+        
+        predictions = forecaster.predict_next_hour()
+        
+        return jsonify({
+            'status': 'success',
+            'predictions': predictions,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting next hour forecast: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/forecast/alerts', methods=['GET'])
+def get_forecast_alerts():
+    """
+    Check if forecasts predict threshold breaches.
+    """
+    try:
+        from bot.ml.forecaster import MetricForecaster
+        
+        model_path = '/app/data/models/forecaster_latest.joblib'
+        
+        try:
+            forecaster = MetricForecaster.load(model_path)
+        except FileNotFoundError:
+            return jsonify({
+                'status': 'error',
+                'message': 'No trained forecaster found'
+            }), 404
+        
+        # Define thresholds (can be made configurable)
+        thresholds = {
+            'cpu_usage_percent': 80.0,
+            'memory_usage_mb': 7000,
+            'error_rate': 0.10,
+            'response_time_p95': 2000
+        }
+        
+        alerts = forecaster.detect_anomalous_forecast(thresholds)
+        
+        return jsonify({
+            'status': 'success',
+            'alerts': alerts,
+            'alert_count': len(alerts),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking forecast alerts: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/forecast/trend/<metric>', methods=['GET'])
+def get_trend_analysis(metric: str):
+    """
+    Get trend analysis for a specific metric.
+    """
+    try:
+        from bot.ml.forecaster import MetricForecaster
+        
+        model_path = '/app/data/models/forecaster_latest.joblib'
+        
+        try:
+            forecaster = MetricForecaster.load(model_path)
+        except FileNotFoundError:
+            return jsonify({
+                'status': 'error',
+                'message': 'No trained forecaster found'
+            }), 404
+        
+        trend = forecaster.get_trend_analysis(metric)
+        
+        return jsonify({
+            'status': 'success',
+            'trend': trend
+        })
+        
+    except ValueError as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 404
+    except Exception as e:
+        logger.error(f"Error getting trend analysis: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 # ==================== Health Endpoint ====================
 
 @ml_bp.route('/health', methods=['GET'])

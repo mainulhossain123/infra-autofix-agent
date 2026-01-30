@@ -623,3 +623,52 @@ Run automated tests:
 - POST /api/ml/predict/anomaly
 - GET /api/ml/anomaly-scores
 
+
+---
+
+## Phase 3: Time Series Forecasting ( Complete)
+
+### Features
+- Prophet-based forecasting (1-24 hours ahead)
+- Automatic seasonality detection (daily, weekly)
+- Confidence intervals for predictions
+- Predictive alerts BEFORE incidents occur
+- Trend analysis and change point detection
+
+### Quick Start
+
+Train forecaster:
+```powershell
+curl -X POST http://localhost:5000/api/ml/train/forecaster -H "Content-Type: application/json" -d '{}'
+```
+
+Get predictions:
+```powershell
+# Next hour summary
+curl http://localhost:5000/api/ml/forecast/next-hour
+
+# 6-hour forecast
+curl http://localhost:5000/api/ml/forecast?hours_ahead=6&metric=cpu_usage_percent
+
+# Check predicted breaches
+curl http://localhost:5000/api/ml/forecast/alerts
+```
+
+Run tests:
+```powershell
+.\scripts\test-phase3.ps1
+```
+
+### API Endpoints
+- POST /api/ml/train/forecaster
+- GET /api/ml/forecast
+- GET /api/ml/forecast/next-hour
+- GET /api/ml/forecast/alerts
+- GET /api/ml/forecast/trend/<metric>
+
+### Predictive Incidents
+New incident type: **predicted_breach**
+- Triggers BEFORE problems occur
+- Based on forecast thresholds
+- Enables proactive remediation
+

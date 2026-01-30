@@ -196,6 +196,67 @@ class MLAnomalyDetector(IncidentDetector):
         return None
 
 
+class PredictiveAlertDetector(IncidentDetector):
+    """Detects predicted threshold breaches using forecasting"""
+    
+    def __init__(self, thresholds: Dict[str, Any]):
+        super().__init__(thresholds)
+        self.forecaster = None
+        self.forecaster_loaded = False
+        self._load_forecaster()
+    
+    def _load_forecaster(self):
+        """Load trained forecaster model"""
+        try:
+            from bot.ml.forecaster import MetricForecaster
+            model_path = '/app/data/models/forecaster_latest.joblib'
+            self.forecaster = MetricForecaster.load(model_path)
+            self.forecaster_loaded = True
+            logger.info("Predictive forecaster loaded successfully")
+        except Exception as e:
+            logger.warning(f"Predictive forecaster not available: {e}")
+            self.forecaster_loaded = False
+    
+    def detect(self, health_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Detect predicted threshold breaches"""
+        if not self.forecaster_loaded or not self.forecaster:
+            return None
+        
+        try:
+            # Define thresholds for predictions
+            forecast_thresholds = {
+                'cpu_usage_percent': self.thresholds.get('cpu_threshold', 80.0),
+                'memory_usage_mb': 7000,
+                'error_rate': self.thresholds.get('error_rate_threshold', 0.10),
+                'response_time_p95': self.thresholds.get('response_time_threshold', 2000)
+            }
+            
+            # Check for predicted breaches
+            alerts = self.forecaster.detect_anomalous_forecast(forecast_thresholds)
+            
+            if alerts:
+                # Return the most severe predicted breach
+                most_severe = max(alerts, key=lambda x: x.get('predicted_value', 0))
+                
+                return {
+                    'type': 'predicted_breach',
+                    'severity': most_severe['severity'],
+                    'details': {
+                        'metric': most_severe['metric'],
+                        'predicted_value': most_severe['predicted_value'],
+                        'threshold': most_severe['threshold'],
+                        'time_to_breach': most_severe['time_to_breach'],
+                        'trend': most_severe['trend'],
+                        'confidence_interval': most_severe['confidence_interval'],
+                        'message': f"Predicted {most_severe['metric']} will exceed {most_severe['threshold']} within 1 hour"
+                    }
+                }
+        except Exception as e:
+            logger.error(f"Error in predictive detection: {e}", exc_info=True)
+        
+        return None
+
+
 class DetectorManager:
     """Manages all incident detectors"""
     
@@ -205,7 +266,8 @@ class DetectorManager:
             ErrorRateDetector(thresholds),
             CPUSpikeDetector(thresholds),
             ResponseTimeDetector(thresholds),
-            MLAnomalyDetector(thresholds)  # ML-powered detection
+            MLAnomalyDetector(thresholds),  # ML-powered detection
+            PredictiveAlertDetector(thresholds)  # Forecasting-based prediction
         ]
     
     def detect_all(self, health_data: Dict[str, Any]) -> list:
