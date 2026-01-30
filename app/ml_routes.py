@@ -888,5 +888,280 @@ def ml_health():
         }), 500
 
 
-# Export blueprint
-__all__ = ['ml_bp']
+# ==================== LLM Analysis Endpoints ====================
+
+@ml_bp.route('/analyze/incident/<int:incident_id>', methods=['POST'])
+def analyze_incident_with_llm(incident_id: int):
+    """
+    Analyze incident using LLM and store insights.
+    """
+    try:
+        from bot.ml.llm_analyzer import LLMAnalyzer
+        
+        # Get incident from database
+        db = get_db_session()
+        try:
+            result = db.execute(text("""
+                SELECT id, type, severity, details, timestamp, status
+                FROM incidents
+                WHERE id = :id
+            """), {'id': incident_id})
+            
+            row = result.fetchone()
+            if not row:
+                return jsonify({'error': f'Incident {incident_id} not found'}), 404
+            
+            incident = {
+                'id': row[0],
+                'type': row[1],
+                'severity': row[2],
+                'details': row[3],
+                'timestamp': row[4].isoformat() if row[4] else None,
+                'status': row[5]
+            }
+            
+            # Analyze with LLM
+            analyzer = LLMAnalyzer()
+            analysis = analyzer.analyze_incident(incident)
+            
+            # Store analysis in database
+            db.execute(text("""
+                INSERT INTO llm_analyses (incident_id, root_cause, suggested_actions,
+                                         explanation, confidence, model_used, analyzed_at)
+                VALUES (:incident_id, :root_cause, :suggestions, :explanation,
+                       :confidence, :model, :analyzed_at)
+            """), {
+                'incident_id': incident_id,
+                'root_cause': analysis.get('root_cause', ''),
+                'suggestions': str(analysis.get('suggestions', [])),
+                'explanation': analysis.get('explanation', ''),
+                'confidence': analysis.get('confidence', 'medium'),
+                'model': analysis.get('model', 'llama3.2:3b'),
+                'analyzed_at': datetime.now()
+            })
+            db.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'incident_id': incident_id,
+                'analysis': analysis
+            })
+            
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Error analyzing incident: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/analyze/metrics-pattern', methods=['POST'])
+def analyze_metrics_pattern():
+    """
+    Analyze metrics pattern using LLM.
+    Request body:
+        - hours: Number of hours of history to analyze (default: 24)
+    """
+    try:
+        from bot.ml.llm_analyzer import LLMAnalyzer
+        
+        data = request.get_json() or {}
+        hours = data.get('hours', 24)
+        
+        # Get recent metrics
+        db = get_db_session()
+        try:
+            result = db.execute(text("""
+                SELECT timestamp, cpu_usage_percent, memory_usage_mb, error_rate,
+                       response_time_p95
+                FROM metrics_history
+                WHERE timestamp > NOW() - INTERVAL ':hours hours'
+                ORDER BY timestamp DESC
+                LIMIT 1000
+            """), {'hours': hours})
+            
+            rows = result.fetchall()
+            columns = result.keys()
+            
+            if not rows:
+                return jsonify({'error': 'No metrics data available'}), 404
+            
+            metrics = [dict(zip(columns, row)) for row in rows]
+            
+            # Analyze with LLM
+            analyzer = LLMAnalyzer()
+            analysis = analyzer.analyze_metrics_pattern(metrics)
+            
+            return jsonify({
+                'status': 'success',
+                'analysis': analysis,
+                'metrics_analyzed': len(metrics),
+                'time_range_hours': hours
+            })
+            
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Error analyzing metrics pattern: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/suggest-remediation', methods=['POST'])
+def suggest_remediation():
+    """
+    Get LLM-powered remediation suggestions.
+    Request body:
+        - incident_type: Type of incident
+        - context: Additional context dictionary
+    """
+    try:
+        from bot.ml.llm_analyzer import LLMAnalyzer
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body required'}), 400
+        
+        incident_type = data.get('incident_type')
+        context = data.get('context', {})
+        
+        if not incident_type:
+            return jsonify({'error': 'incident_type required'}), 400
+        
+        analyzer = LLMAnalyzer()
+        suggestions = analyzer.suggest_remediation(incident_type, context)
+        
+        return jsonify({
+            'status': 'success',
+            'incident_type': incident_type,
+            'suggestions': suggestions
+        })
+        
+    except Exception as e:
+        logger.error(f"Error suggesting remediation: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/generate-report/<int:incident_id>', methods=['GET'])
+def generate_incident_report(incident_id: int):
+    """
+    Generate natural language incident report using LLM.
+    """
+    try:
+        from bot.ml.llm_analyzer import LLMAnalyzer
+        
+        db = get_db_session()
+        try:
+            # Get incident
+            result = db.execute(text("""
+                SELECT id, type, severity, details, timestamp, status
+                FROM incidents
+                WHERE id = :id
+            """), {'id': incident_id})
+            
+            row = result.fetchone()
+            if not row:
+                return jsonify({'error': f'Incident {incident_id} not found'}), 404
+            
+            incident = {
+                'id': row[0],
+                'type': row[1],
+                'severity': row[2],
+                'details': row[3],
+                'timestamp': row[4].isoformat() if row[4] else None,
+                'status': row[5]
+            }
+            
+            # Get LLM analysis
+            result = db.execute(text("""
+                SELECT root_cause, suggested_actions, explanation, confidence
+                FROM llm_analyses
+                WHERE incident_id = :id
+                ORDER BY analyzed_at DESC
+                LIMIT 1
+            """), {'id': incident_id})
+            
+            analysis_row = result.fetchone()
+            analysis = {}
+            if analysis_row:
+                analysis = {
+                    'root_cause': analysis_row[0],
+                    'suggestions': analysis_row[1],
+                    'explanation': analysis_row[2],
+                    'confidence': analysis_row[3]
+                }
+            
+            # Get remediation actions
+            result = db.execute(text("""
+                SELECT action_type, target, success, error_message, timestamp
+                FROM remediation_actions
+                WHERE incident_id = :id
+                ORDER BY timestamp
+            """), {'id': incident_id})
+            
+            actions = []
+            for action_row in result.fetchall():
+                actions.append({
+                    'action_type': action_row[0],
+                    'target': action_row[1],
+                    'success': action_row[2],
+                    'error_message': action_row[3],
+                    'timestamp': action_row[4].isoformat() if action_row[4] else None
+                })
+            
+            # Generate report
+            analyzer = LLMAnalyzer()
+            report = analyzer.generate_incident_report(incident, analysis, actions)
+            
+            return jsonify({
+                'status': 'success',
+                'incident_id': incident_id,
+                'report': report,
+                'generated_at': datetime.now().isoformat()
+            })
+            
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Error generating report: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/llm/health', methods=['GET'])
+def llm_health():
+    """
+    Check LLM service health.
+    """
+    try:
+        from bot.ml.llm_analyzer import LLMAnalyzer
+        
+        analyzer = LLMAnalyzer()
+        
+        return jsonify({
+            'status': 'available' if analyzer.is_available else 'unavailable',
+            'ollama_url': analyzer.ollama_url,
+            'model': analyzer.model,
+            'message': 'LLM ready for analysis' if analyzer.is_available else 'Ollama service not accessible'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking LLM health: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+

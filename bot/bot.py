@@ -192,6 +192,60 @@ class AutoRemediationBot:
         logger.info(f"Circuit breaker: max {max_restarts} actions per 5min, cooldown {cooldown_seconds}s")
         logger.info(f"Data cleanup: retention {retention_days} days, runs every {self.cleanup_interval_hours} hours")
     
+    def _trigger_llm_analysis(self, incident_id: int, incident: dict):
+        """
+        Trigger LLM analysis for incident (non-blocking)
+        
+        Args:
+            incident_id: Database incident ID
+            incident: Incident dictionary
+        """
+        try:
+            # Import LLM analyzer
+            try:
+                from ml.llm_analyzer import LLMAnalyzer
+                
+                analyzer = LLMAnalyzer()
+                if not analyzer.is_available:
+                    logger.debug("LLM service not available, skipping analysis")
+                    return
+                
+                # Analyze incident
+                analysis = analyzer.analyze_incident(incident)
+                
+                # Store in database
+                if self.db:
+                    session = self.db.get_session()
+                    try:
+                        query = text("""
+                            INSERT INTO llm_analyses (incident_id, root_cause, suggested_actions,
+                                                     explanation, confidence, model_used, analyzed_at)
+                            VALUES (:incident_id, :root_cause, :suggestions, :explanation,
+                                   :confidence, :model, NOW())
+                        """)
+                        session.execute(query, {
+                            'incident_id': incident_id,
+                            'root_cause': analysis.get('root_cause', ''),
+                            'suggestions': str(analysis.get('suggestions', [])),
+                            'explanation': analysis.get('explanation', ''),
+                            'confidence': analysis.get('confidence', 'medium'),
+                            'model': analysis.get('model', 'llama3.2:3b')
+                        })
+                        session.commit()
+                        logger.info(f"LLM analysis stored for incident {incident_id}: {analysis.get('root_cause', '')[:100]}")
+                    except Exception as e:
+                        session.rollback()
+                        logger.error(f"Failed to store LLM analysis: {e}")
+                    finally:
+                        session.close()
+                        
+            except ImportError:
+                logger.debug("LLM analyzer not available (ml module not installed)")
+                return
+                
+        except Exception as e:
+            logger.error(f"Error in LLM analysis: {e}", exc_info=True)
+    
     def get_health(self):
         """
         Get health status from application.
@@ -256,6 +310,11 @@ class AutoRemediationBot:
                 session = self.db.get_session()
                 try:
                     incident_id = self.db.log_incident(session, incident, service_name)
+                    
+                    # Trigger LLM analysis asynchronously
+                    if incident_id:
+                        self._trigger_llm_analysis(incident_id, incident)
+                        
                 except Exception as e:
                     logger.error(f"Failed to log incident: {e}")
                 finally:
