@@ -205,6 +205,26 @@ class AutoRemediationBot:
             except Exception as e:
                 logger.warning(f"Failed to initialize failure predictor: {e}")
         
+        # Continuous learning (Phase 6)
+        self.continuous_learning = None
+        self.continuous_learning_enabled = os.getenv('ENABLE_CONTINUOUS_LEARNING', 'true').lower() == 'true'
+        self.retrain_check_interval = int(os.getenv('RETRAIN_CHECK_INTERVAL', 3600))  # Check hourly
+        self.last_retrain_check_time = None
+        
+        if self.continuous_learning_enabled:
+            try:
+                from ml.continuous_learning import ContinuousLearning
+                if self.db:
+                    session = self.db.get_session()
+                    self.continuous_learning = ContinuousLearning(session.connection())
+                    logger.info("Continuous learning system initialized")
+                else:
+                    logger.warning("Continuous learning disabled - no database connection")
+            except ImportError:
+                logger.warning("Continuous learning not available")
+            except Exception as e:
+                logger.warning(f"Failed to initialize continuous learning: {e}")
+        
         logger.info("Auto-Remediation Bot initialized")
         logger.info(f"Monitoring: {self.app_host}")
         logger.info(f"Poll interval: {self.poll_seconds}s")
@@ -349,6 +369,50 @@ class AutoRemediationBot:
                         
         except Exception as e:
             logger.error(f"Error checking failure prediction: {e}", exc_info=True)
+    
+    def _check_model_retraining(self):
+        """
+        Check if ML models need retraining and retrain if necessary.
+        Runs periodically based on retrain_check_interval.
+        """
+        current_time = time.time()
+        
+        # Check if we should run retrain check
+        if self.last_retrain_check_time:
+            time_since_last_check = current_time - self.last_retrain_check_time
+            if time_since_last_check < self.retrain_check_interval:
+                return  # Not time yet
+        
+        self.last_retrain_check_time = current_time
+        
+        if not self.continuous_learning:
+            return
+        
+        try:
+            logger.info("Checking if models need retraining...")
+            
+            # Check and retrain if needed
+            actions = self.continuous_learning.check_and_retrain()
+            
+            # Log results
+            retrained_models = [
+                action['model'] for action in actions.get('retraining_actions', [])
+                if action.get('retrained')
+            ]
+            
+            if retrained_models:
+                logger.info(f"Models retrained: {', '.join(retrained_models)}")
+                
+                # Send notification
+                self.notification_manager.send_notification(
+                    f"🔄 ML Models Retrained: {', '.join(retrained_models)}",
+                    "INFO"
+                )
+            else:
+                logger.debug("No models needed retraining")
+        
+        except Exception as e:
+            logger.error(f"Error checking model retraining: {e}", exc_info=True)
     
     def get_health(self):
         """
@@ -569,6 +633,10 @@ class AutoRemediationBot:
                 # Check failure prediction (Phase 5)
                 if self.failure_prediction_enabled and self.failure_predictor:
                     self._check_failure_prediction()
+                
+                # Check model retraining (Phase 6)
+                if self.continuous_learning_enabled and self.continuous_learning:
+                    self._check_model_retraining()
                 
                 # Get health status
                 health_data, error = self.get_health()

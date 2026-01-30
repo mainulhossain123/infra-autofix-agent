@@ -1431,3 +1431,207 @@ def get_predictor_info():
         }), 500
 
 
+# ============================================================================
+# PHASE 6: CONTINUOUS LEARNING ENDPOINTS
+# ============================================================================
+
+@ml_bp.route('/continuous-learning/status', methods=['GET'])
+def get_continuous_learning_status():
+    """
+    Get current status of all ML models (training state, performance, etc.).
+    """
+    try:
+        from bot.ml.continuous_learning import ContinuousLearning
+        
+        cl = ContinuousLearning(db.session.connection())
+        status = cl.get_model_status()
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        logger.error(f"Error getting continuous learning status: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/continuous-learning/check-retrain', methods=['POST'])
+def check_and_retrain():
+    """
+    Check if models need retraining and retrain if necessary.
+    
+    This is automatically done by the bot, but can be manually triggered.
+    """
+    try:
+        from bot.ml.continuous_learning import ContinuousLearning
+        
+        cl = ContinuousLearning(db.session.connection())
+        actions = cl.check_and_retrain()
+        
+        return jsonify(actions)
+        
+    except Exception as e:
+        logger.error(f"Error in check and retrain: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/continuous-learning/retrain-all', methods=['POST'])
+def retrain_all_models():
+    """
+    Force retrain all ML models regardless of criteria.
+    
+    Use with caution - this can take several minutes.
+    """
+    try:
+        from bot.ml.continuous_learning import ContinuousLearning
+        
+        cl = ContinuousLearning(db.session.connection())
+        results = cl.retrain_all_models()
+        
+        return jsonify(results)
+        
+    except Exception as e:
+        logger.error(f"Error retraining all models: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/continuous-learning/evaluate/<model_name>', methods=['POST'])
+def evaluate_model(model_name):
+    """
+    Evaluate model performance on recent data.
+    
+    Args:
+        model_name: 'anomaly_detector', 'failure_predictor', or 'forecaster'
+    
+    Request body (optional):
+        {
+            "hours_back": 24  // Hours of data to evaluate
+        }
+    """
+    try:
+        from bot.ml.continuous_learning import ContinuousLearning
+        
+        data = request.get_json() or {}
+        hours_back = data.get('hours_back', 24)
+        
+        cl = ContinuousLearning(db.session.connection())
+        performance = cl.evaluate_model_performance(model_name, hours_back)
+        
+        return jsonify(performance)
+        
+    except Exception as e:
+        logger.error(f"Error evaluating model {model_name}: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/continuous-learning/training-history', methods=['GET'])
+def get_training_history():
+    """
+    Get training history for all models or a specific model.
+    
+    Query params:
+        model_name: Optional model name filter
+        limit: Maximum records to return (default: 10)
+    """
+    try:
+        from bot.ml.continuous_learning import ContinuousLearning
+        
+        model_name = request.args.get('model_name')
+        limit = int(request.args.get('limit', 10))
+        
+        cl = ContinuousLearning(db.session.connection())
+        history = cl.get_training_history(model_name=model_name, limit=limit)
+        
+        return jsonify({
+            'status': 'success',
+            'count': len(history),
+            'history': history
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting training history: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/continuous-learning/metrics-summary', methods=['GET'])
+def get_ml_metrics_summary():
+    """
+    Get summary of ML system performance across all models.
+    """
+    try:
+        from sqlalchemy import text
+        
+        # Get overall stats
+        stats_query = text("""
+            SELECT 
+                COUNT(DISTINCT model_name) as total_models,
+                SUM(CASE WHEN trained_at > NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END) as recently_trained,
+                AVG(accuracy) as avg_accuracy
+            FROM ml_models
+            WHERE model_name IN ('anomaly_detector', 'failure_predictor')
+        """)
+        
+        stats = db.session.execute(stats_query).fetchone()
+        
+        # Get recent predictions count
+        predictions_query = text("""
+            SELECT 
+                (SELECT COUNT(*) FROM anomaly_scores WHERE timestamp > NOW() - INTERVAL '24 hours') as anomaly_predictions,
+                (SELECT COUNT(*) FROM failure_predictions WHERE prediction_time > NOW() - INTERVAL '24 hours') as failure_predictions,
+                (SELECT COUNT(*) FROM metric_forecasts WHERE forecast_time > NOW() - INTERVAL '24 hours') as forecasts
+        """)
+        
+        predictions = db.session.execute(predictions_query).fetchone()
+        
+        # Get incidents detected by ML
+        ml_incidents_query = text("""
+            SELECT COUNT(*) 
+            FROM incidents 
+            WHERE type IN ('ml_anomaly', 'predicted_breach', 'predicted_failure')
+                AND detected_at > NOW() - INTERVAL '24 hours'
+        """)
+        
+        ml_incidents = db.session.execute(ml_incidents_query).scalar()
+        
+        summary = {
+            'status': 'success',
+            'period': '24 hours',
+            'timestamp': datetime.now().isoformat(),
+            'models': {
+                'total': int(stats[0]) if stats else 0,
+                'recently_trained': int(stats[1]) if stats else 0,
+                'avg_accuracy': float(stats[2]) if stats and stats[2] else 0.0
+            },
+            'predictions': {
+                'anomaly_detections': int(predictions[0]) if predictions else 0,
+                'failure_predictions': int(predictions[1]) if predictions else 0,
+                'forecasts': int(predictions[2]) if predictions else 0
+            },
+            'ml_incidents_detected': int(ml_incidents) if ml_incidents else 0
+        }
+        
+        return jsonify(summary)
+        
+    except Exception as e:
+        logger.error(f"Error getting ML metrics summary: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
