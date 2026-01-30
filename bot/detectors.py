@@ -129,6 +129,73 @@ class ResponseTimeDetector(IncidentDetector):
         return None
 
 
+class MLAnomalyDetector(IncidentDetector):
+    """Detects anomalies using ML model"""
+    
+    def __init__(self, thresholds: Dict[str, Any]):
+        super().__init__(thresholds)
+        self.model = None
+        self.model_loaded = False
+        self._load_model()
+    
+    def _load_model(self):
+        """Load trained ML model"""
+        try:
+            from bot.ml.anomaly_detector import AnomalyDetector
+            model_path = '/app/data/models/anomaly_detector_latest.joblib'
+            self.model = AnomalyDetector.load(model_path)
+            self.model_loaded = True
+            logger.info("ML anomaly detector loaded successfully")
+        except Exception as e:
+            logger.warning(f"ML anomaly detector not available: {e}")
+            self.model_loaded = False
+    
+    def detect(self, health_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Detect anomalies using ML model"""
+        if not self.model_loaded or not self.model:
+            return None
+        
+        if not health_data or 'metrics' not in health_data:
+            return None
+        
+        try:
+            metrics = health_data['metrics']
+            
+            # Add timestamp if not present
+            from datetime import datetime
+            if 'timestamp' not in metrics:
+                metrics['timestamp'] = datetime.now().isoformat()
+            
+            # Predict
+            prediction = self.model.predict_single(metrics)
+            
+            # Get severity threshold from config (default 70)
+            severity_threshold = self.thresholds.get('ml_anomaly_severity', 70)
+            
+            if prediction.get('is_anomaly') and prediction.get('anomaly_severity', 0) >= severity_threshold:
+                # Get feature contributions
+                contributions = self.model.get_feature_contributions(metrics)
+                top_3 = dict(list(contributions.items())[:3])
+                
+                severity = 'CRITICAL' if prediction['anomaly_severity'] >= 85 else 'WARNING'
+                
+                return {
+                    'type': 'ml_anomaly',
+                    'severity': severity,
+                    'details': {
+                        'anomaly_score': prediction['anomaly_score'],
+                        'anomaly_severity': prediction['anomaly_severity'],
+                        'top_contributing_features': top_3,
+                        'prediction_timestamp': prediction['timestamp'],
+                        'model_type': 'isolation_forest'
+                    }
+                }
+        except Exception as e:
+            logger.error(f"Error in ML anomaly detection: {e}", exc_info=True)
+        
+        return None
+
+
 class DetectorManager:
     """Manages all incident detectors"""
     
@@ -137,7 +204,8 @@ class DetectorManager:
             HealthCheckDetector(thresholds),
             ErrorRateDetector(thresholds),
             CPUSpikeDetector(thresholds),
-            ResponseTimeDetector(thresholds)
+            ResponseTimeDetector(thresholds),
+            MLAnomalyDetector(thresholds)  # ML-powered detection
         ]
     
     def detect_all(self, health_data: Dict[str, Any]) -> list:

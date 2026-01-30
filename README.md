@@ -14,8 +14,10 @@
 - 📊 **Full Observability Stack** - Grafana dashboards, Prometheus metrics, Loki logs
 - ⚡ **Real-time Updates** - WebSocket-based live dashboard
 - 🚨 **Smart Alerting** - Configurable thresholds with Prometheus alerts
+- 🤖 **ML-Powered Anomaly Detection** - AI/ML models predict failures before they happen *(Phase 1 Complete)*
 - 🐳 **Cloud-Native** - Docker/Kubernetes ready with multi-platform support
 - 🔐 **Production-Grade** - CI/CD pipelines, security scanning, automated testing
+- 📖 **Interactive API Documentation** - Swagger UI with live testing
 
 ## Quick Start
 

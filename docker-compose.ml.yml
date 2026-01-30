@@ -1,0 +1,83 @@
+# Docker Compose for ML Services
+# This extends the main docker-compose.yml with ML-specific services
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.ml.yml up -d
+
+version: '3.8'
+
+services:
+  # Ollama LLM Service (Phase 4)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ar_ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - remediation_network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    # Note: After first start, download models with:
+    # docker exec -it ar_ollama ollama pull llama3.2:3b
+
+  # ML Trainer Service (Optional - for scheduled retraining)
+  ml-trainer:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: ar_ml_trainer
+    volumes:
+      - ./bot:/app
+      - ml_models:/app/models
+      - ml_data:/app/data
+    environment:
+      # Database connection
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=remediation_db
+      - POSTGRES_USER=remediation_user
+      - POSTGRES_PASSWORD=remediation_pass
+      
+      # ML Configuration
+      - ML_ENABLED=true
+      - ML_TRAINING_MODE=scheduled
+      - ML_RETRAIN_INTERVAL=weekly
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:3b
+      
+      # Training settings
+      - USE_SYNTHETIC_DATA=true
+      - SYNTHETIC_DATA_DAYS=30
+      - MODEL_SAVE_PATH=/app/models
+      
+    depends_on:
+      - postgres
+      - ollama
+    networks:
+      - remediation_network
+    restart: unless-stopped
+    command: python -c "print('ML Trainer ready. Run training scripts manually or via cron.')"
+    # For scheduled training, replace command with:
+    # command: python ml/train_scheduler.py
+
+volumes:
+  ollama_data:
+    driver: local
+  ml_models:
+    driver: local
+  ml_data:
+    driver: local
+
+networks:
+  remediation_network:
+    external: true

@@ -29,6 +29,16 @@ from simulate import start_simulator
 from websocket import init_socketio, broadcast_metric_update, broadcast_health_update
 from db_monitor import DatabaseMonitor
 
+# Import ML module (Phase 1: Data Pipeline)
+try:
+    from ml_routes import ml_bp
+    from metrics_collector import initialize_collector, get_collector
+    ML_ENABLED = True
+except ImportError as e:
+    logger.warning(f"ML module not available: {e}")
+    ML_ENABLED = False
+    ml_bp = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -103,6 +113,11 @@ swagger_template = {
 }
 
 swagger = Swagger(app, config=swagger_config, template=swagger_template)
+
+# Register ML routes blueprint
+if ML_ENABLED and ml_bp:
+    app.register_blueprint(ml_bp)
+    logger.info("ML routes registered at /api/ml/*")
 
 # Initialize WebSocket
 socketio = init_socketio(app)
@@ -951,6 +966,20 @@ def init_app():
         threading.Thread(target=start_simulator, args=(app_state,), daemon=True).start()
     else:
         logger.info("Simulator disabled or replica mode - skipping simulator")
+    
+    # Initialize ML metrics collector (Phase 1: Data Pipeline)
+    if ML_ENABLED:
+        try:
+            collector = initialize_collector(
+                db_session_factory=get_db_session,
+                app_state=app_state,
+                interval_seconds=int(os.getenv('ML_COLLECTION_INTERVAL', 60))
+            )
+            logger.info("ML metrics collector initialized and started")
+        except Exception as e:
+            logger.error(f"Failed to initialize ML metrics collector: {e}")
+    else:
+        logger.info("ML module disabled - metrics collection skipped")
     
     # Start WebSocket metric broadcaster
     def metric_broadcaster():
