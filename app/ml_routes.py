@@ -1165,3 +1165,269 @@ def llm_health():
         }), 500
 
 
+# ============================================================================
+# PHASE 5: FAILURE PREDICTION ENDPOINTS
+# ============================================================================
+
+@ml_bp.route('/failure-prediction/train', methods=['POST'])
+def train_failure_predictor():
+    """
+    Train the failure prediction model.
+    
+    Request body (optional):
+        {
+            "hours_back": 168,  // Hours of historical data (default: 7 days)
+            "num_iterations": 100  // Boosting iterations (default: 100)
+        }
+    """
+    try:
+        from bot.ml.failure_predictor import FailurePredictor
+        
+        data = request.get_json() or {}
+        hours_back = data.get('hours_back', 168)  # 7 days default
+        num_iterations = data.get('num_iterations', 100)
+        
+        predictor = FailurePredictor(db.session.connection())
+        metrics = predictor.train(hours_back=hours_back, num_iterations=num_iterations)
+        
+        # Store model metadata
+        from sqlalchemy import text
+        store_query = text("""
+            INSERT INTO ml_models (model_name, model_type, version, accuracy, metadata, trained_at)
+            VALUES ('failure_predictor', 'lightgbm', 1, :accuracy, :metadata, NOW())
+            ON DUPLICATE KEY UPDATE
+                accuracy = :accuracy,
+                metadata = :metadata,
+                trained_at = NOW()
+        """)
+        
+        db.session.execute(store_query, {
+            'accuracy': metrics.get('train_accuracy', 0.0),
+            'metadata': str(metrics)
+        })
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Failure predictor trained successfully',
+            'metrics': metrics
+        })
+        
+    except ImportError:
+        return jsonify({
+            'status': 'error',
+            'message': 'LightGBM not available. Install with: pip install lightgbm'
+        }), 500
+        
+    except Exception as e:
+        logger.error(f"Error training failure predictor: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/failure-prediction/predict', methods=['POST'])
+def predict_failure():
+    """
+    Predict failure probability for the next hour.
+    
+    Request body (optional):
+        {
+            "lookback_hours": 1  // Hours of recent data to analyze
+        }
+    """
+    try:
+        from bot.ml.failure_predictor import FailurePredictor
+        
+        data = request.get_json() or {}
+        lookback_hours = data.get('lookback_hours', 1)
+        
+        predictor = FailurePredictor(db.session.connection())
+        
+        # Load model if exists (in production, cache this)
+        from sqlalchemy import text
+        check_query = text("""
+            SELECT COUNT(*) as count FROM ml_models 
+            WHERE model_name = 'failure_predictor'
+        """)
+        result = db.session.execute(check_query).fetchone()
+        
+        if result[0] == 0:
+            return jsonify({
+                'status': 'error',
+                'message': 'Model not trained. Train first using /api/ml/failure-prediction/train'
+            }), 400
+        
+        # Note: In production, load actual model from disk
+        # For now, we'll train a quick model if needed
+        if not predictor.is_trained:
+            logger.info("Training quick model for prediction...")
+            predictor.train(hours_back=24, num_iterations=50)
+        
+        prediction = predictor.predict(lookback_hours=lookback_hours)
+        
+        # Store prediction
+        if prediction.get('status') == 'success':
+            store_query = text("""
+                INSERT INTO failure_predictions 
+                (prediction_time, failure_probability, risk_level, lookback_hours, metadata)
+                VALUES (NOW(), :probability, :risk_level, :lookback_hours, :metadata)
+            """)
+            
+            db.session.execute(store_query, {
+                'probability': prediction['probability'],
+                'risk_level': prediction['risk_level'],
+                'lookback_hours': lookback_hours,
+                'metadata': str(prediction)
+            })
+            db.session.commit()
+        
+        return jsonify(prediction)
+        
+    except Exception as e:
+        logger.error(f"Error predicting failure: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/failure-prediction/forecast', methods=['POST'])
+def forecast_failures():
+    """
+    Forecast failure probabilities for multiple hours ahead.
+    
+    Request body (optional):
+        {
+            "hours_ahead": 24  // How many hours to forecast
+        }
+    """
+    try:
+        from bot.ml.failure_predictor import FailurePredictor
+        
+        data = request.get_json() or {}
+        hours_ahead = min(data.get('hours_ahead', 24), 72)  # Max 72 hours
+        
+        predictor = FailurePredictor(db.session.connection())
+        
+        # Quick train if needed
+        if not predictor.is_trained:
+            logger.info("Training quick model for forecast...")
+            predictor.train(hours_back=24, num_iterations=50)
+        
+        predictions = predictor.predict_batch(hours_ahead=hours_ahead)
+        
+        return jsonify({
+            'status': 'success',
+            'hours_ahead': hours_ahead,
+            'predictions': predictions
+        })
+        
+    except Exception as e:
+        logger.error(f"Error forecasting failures: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/failure-prediction/alerts', methods=['GET'])
+def get_failure_alerts():
+    """
+    Get recent failure predictions that exceed alert thresholds.
+    """
+    try:
+        from sqlalchemy import text
+        
+        query = text("""
+            SELECT 
+                prediction_time,
+                failure_probability,
+                risk_level,
+                lookback_hours,
+                metadata
+            FROM failure_predictions
+            WHERE risk_level IN ('high', 'medium')
+            ORDER BY prediction_time DESC
+            LIMIT 50
+        """)
+        
+        result = db.session.execute(query)
+        alerts = []
+        
+        for row in result:
+            alerts.append({
+                'prediction_time': row[0].isoformat(),
+                'failure_probability': float(row[1]),
+                'risk_level': row[2],
+                'lookback_hours': row[3],
+                'metadata': row[4]
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'count': len(alerts),
+            'alerts': alerts
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting failure alerts: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@ml_bp.route('/failure-prediction/model-info', methods=['GET'])
+def get_predictor_info():
+    """
+    Get information about the trained failure prediction model.
+    """
+    try:
+        from bot.ml.failure_predictor import FailurePredictor
+        
+        predictor = FailurePredictor(db.session.connection())
+        
+        # Try to train a quick model if not trained
+        if not predictor.is_trained:
+            try:
+                predictor.train(hours_back=24, num_iterations=50)
+            except:
+                pass
+        
+        info = predictor.get_model_info()
+        
+        # Get training history from database
+        from sqlalchemy import text
+        history_query = text("""
+            SELECT trained_at, accuracy, metadata
+            FROM ml_models
+            WHERE model_name = 'failure_predictor'
+            ORDER BY trained_at DESC
+            LIMIT 5
+        """)
+        
+        result = db.session.execute(history_query)
+        training_history = []
+        
+        for row in result:
+            training_history.append({
+                'trained_at': row[0].isoformat() if row[0] else None,
+                'accuracy': float(row[1]) if row[1] else 0.0,
+                'metadata': row[2]
+            })
+        
+        info['training_history'] = training_history
+        
+        return jsonify(info)
+        
+    except Exception as e:
+        logger.error(f"Error getting predictor info: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+

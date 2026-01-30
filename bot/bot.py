@@ -185,6 +185,26 @@ class AutoRemediationBot:
         self.last_cleanup_time = None
         self.cleanup_interval_hours = int(os.getenv('CLEANUP_INTERVAL_HOURS', 24))  # Default: daily
         
+        # Failure prediction (Phase 5)
+        self.failure_predictor = None
+        self.failure_prediction_enabled = os.getenv('ENABLE_FAILURE_PREDICTION', 'true').lower() == 'true'
+        self.failure_check_interval = int(os.getenv('FAILURE_CHECK_INTERVAL', 300))  # Check every 5 minutes
+        self.last_failure_check_time = None
+        
+        if self.failure_prediction_enabled:
+            try:
+                from ml.failure_predictor import FailurePredictor
+                if self.db:
+                    session = self.db.get_session()
+                    self.failure_predictor = FailurePredictor(session.connection())
+                    logger.info("Failure predictor initialized")
+                else:
+                    logger.warning("Failure predictor disabled - no database connection")
+            except ImportError:
+                logger.warning("Failure predictor not available - install lightgbm")
+            except Exception as e:
+                logger.warning(f"Failed to initialize failure predictor: {e}")
+        
         logger.info("Auto-Remediation Bot initialized")
         logger.info(f"Monitoring: {self.app_host}")
         logger.info(f"Poll interval: {self.poll_seconds}s")
@@ -245,6 +265,90 @@ class AutoRemediationBot:
                 
         except Exception as e:
             logger.error(f"Error in LLM analysis: {e}", exc_info=True)
+    
+    def _check_failure_prediction(self):
+        """
+        Check failure prediction and create proactive incidents if high risk detected.
+        Runs periodically based on failure_check_interval.
+        """
+        current_time = time.time()
+        
+        # Check if we should run prediction
+        if self.last_failure_check_time:
+            time_since_last_check = current_time - self.last_failure_check_time
+            if time_since_last_check < self.failure_check_interval:
+                return  # Not time yet
+        
+        self.last_failure_check_time = current_time
+        
+        if not self.failure_predictor:
+            return
+        
+        try:
+            # Get prediction for next hour
+            prediction = self.failure_predictor.predict(lookback_hours=1)
+            
+            if prediction.get('status') != 'success':
+                logger.debug(f"Failure prediction not available: {prediction.get('message')}")
+                return
+            
+            probability = prediction['probability']
+            risk_level = prediction['risk_level']
+            
+            logger.info(f"Failure prediction: {probability:.2%} probability, {risk_level} risk")
+            
+            # Create proactive incident for high/medium risk
+            if risk_level in ['high', 'medium']:
+                # Check if we already alerted recently (avoid spam)
+                incident_key = f"predicted_failure_{risk_level}"
+                now = datetime.now().timestamp()
+                
+                if incident_key in self.last_incident_time:
+                    time_since = now - self.last_incident_time[incident_key]
+                    if time_since < 600:  # Don't alert more than once per 10 minutes
+                        return
+                
+                self.last_incident_time[incident_key] = now
+                
+                # Log proactive incident
+                if self.db:
+                    session = self.db.get_session()
+                    try:
+                        incident_data = {
+                            'type': 'predicted_failure',
+                            'severity': 'HIGH' if risk_level == 'high' else 'MEDIUM',
+                            'details': {
+                                'probability': probability,
+                                'risk_level': risk_level,
+                                'message': prediction['message'],
+                                'top_features': prediction.get('top_contributing_features', [])
+                            }
+                        }
+                        
+                        incident_id = self.db.log_incident(
+                            session, 
+                            incident_data,
+                            'infrastructure'
+                        )
+                        session.commit()
+                        
+                        # Send notification
+                        severity_emoji = "🔴" if risk_level == 'high' else "🟡"
+                        self.notification_manager.send_notification(
+                            f"{severity_emoji} Predicted Failure: {probability:.0%} chance of system failure in the next hour",
+                            incident_data['severity']
+                        )
+                        
+                        logger.warning(f"Proactive failure incident created: {probability:.0%} risk")
+                        
+                    except Exception as e:
+                        logger.error(f"Error logging predicted failure incident: {e}", exc_info=True)
+                        session.rollback()
+                    finally:
+                        session.close()
+                        
+        except Exception as e:
+            logger.error(f"Error checking failure prediction: {e}", exc_info=True)
     
     def get_health(self):
         """
@@ -461,6 +565,10 @@ class AutoRemediationBot:
                 
                 # Run cleanup if needed (checks interval internally)
                 self.run_cleanup_if_needed()
+                
+                # Check failure prediction (Phase 5)
+                if self.failure_prediction_enabled and self.failure_predictor:
+                    self._check_failure_prediction()
                 
                 # Get health status
                 health_data, error = self.get_health()
