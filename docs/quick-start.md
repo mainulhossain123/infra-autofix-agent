@@ -19,11 +19,14 @@ Choose your deployment method based on your needs:
 git clone https://github.com/mainulhossain123/infra-autofix-agent.git
 cd infra-autofix-agent
 
-# Start everything with one command
-docker-compose up -d
+# Start everything with ML/AI features (Recommended)
+docker compose -f docker-compose.yml -f docker-compose.ml.yml up -d
+
+# OR start without ML features (Basic mode)
+docker compose up -d
 
 # Check all services are running
-docker-compose ps
+docker compose ps
 ```
 
 **Expected output:**
@@ -34,29 +37,51 @@ ar_bot             Up        0.0.0.0:8000->8000/tcp
 ar_frontend        Up        0.0.0.0:3000->80/tcp
 ar_grafana         Up        0.0.0.0:3001->3000/tcp
 ar_loki            Up        0.0.0.0:3100->3100/tcp
+ar_ollama          Up        0.0.0.0:11434->11434/tcp (ML mode only)
 ar_postgres        Up        0.0.0.0:5432->5432/tcp
 ar_prometheus      Up        0.0.0.0:9090->9090/tcp
 ar_promtail        Up
 ```
 
-### 2. Access Services
+### 2. Download AI Model (ML Mode Only - One-time setup)
+
+If you started with ML features, download the AI model (~2GB, takes 5-10 minutes):
+
+```powershell
+# Download the LLM model for AI-powered incident analysis
+docker exec ar_ollama ollama pull llama3.2:3b
+
+# Verify model is downloaded
+docker exec ar_ollama ollama list
+```
+
+This enables AI-powered incident analysis and recommendations.
+
+This enables AI-powered incident analysis and recommendations.
+
+### 3. Access Services
 
 | Service | URL | Credentials | Description |
 |---------|-----|-------------|-------------|
-| **React Dashboard** | [http://localhost:3000](http://localhost:3000) | None | Main monitoring UI, incidents, remediation history |
+| **React Dashboard** | [http://localhost:3000](http://localhost:3000) | None | Main monitoring UI with AI insights |
 | **Backend API** | [http://localhost:5000](http://localhost:5000) | None | REST API, health endpoints, metrics |
-| **API Documentation** | [http://localhost:5000/api/docs](http://localhost:5000/api/docs) | None | **Swagger UI** - Interactive API docs & testing |
+| **API Documentation** | [http://localhost:5000/api/docs](http://localhost:5000/api/docs) | None | **Swagger UI** - Interactive API docs & ML testing |
 | **API Health** | [http://localhost:5000/health](http://localhost:5000/health) | None | Backend health check |
+| **ML API Health** | [http://localhost:5000/api/ml/health](http://localhost:5000/api/ml/health) | None | ML features health check |
 | **Prometheus Metrics** | [http://localhost:5000/metrics](http://localhost:5000/metrics) | None | Application metrics endpoint |
 | **Grafana** | [http://localhost:3001](http://localhost:3001) | admin / admin | Dashboards, visualization, alerting |
 | **Prometheus** | [http://localhost:9090](http://localhost:9090) | None | Metrics database, PromQL queries |
 | **Loki** | [http://localhost:3100](http://localhost:3100) | None | Log aggregation API |
+| **Ollama (LLM)** | [http://localhost:11434](http://localhost:11434) | None | Local AI model API (ML mode) |
 
-### 3. Verify Everything Works
+### 4. Verify Everything Works
 
 ```powershell
 # Test backend API
 Invoke-WebRequest http://localhost:5000/health
+
+# Test ML features (if enabled)
+Invoke-WebRequest http://localhost:5000/api/ml/health
 
 # Test frontend
 Invoke-WebRequest http://localhost:3000
@@ -70,12 +95,12 @@ Invoke-WebRequest http://localhost:9090/-/healthy
 
 All should return `StatusCode : 200`
 
-### 4. Explore the System
+### 5. Explore the System
 
 **A. Open the React Dashboard**
 1. Go to [http://localhost:3000](http://localhost:3000)
 2. View real-time metrics on the Dashboard page
-3. Check Incidents for any detected issues
+3. Check Incidents for any detected issues (with AI analysis if ML enabled)
 4. View Remediation History to see bot actions
 
 **B. Open Grafana Dashboards**

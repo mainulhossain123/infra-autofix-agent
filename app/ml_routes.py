@@ -1635,3 +1635,204 @@ def get_ml_metrics_summary():
         }), 500
 
 
+# ==================== AI Chat Assistant Endpoint ====================
+
+@ml_bp.route('/chat', methods=['POST'])
+def chat_with_ai():
+    """
+    Chat with AI assistant for incident analysis and troubleshooting.
+    
+    Request JSON:
+        {
+            "message": "User question",
+            "incident_id": 123 (optional),
+            "include_context": true (optional, default: true)
+        }
+    
+    Response:
+        {
+            "response": "AI response",
+            "context_used": {...},
+            "timestamp": "ISO datetime"
+        }
+    """
+    import os
+    import requests
+    
+    try:
+        data = request.get_json()
+        user_message = data.get('message', '').strip()
+        incident_id = data.get('incident_id')
+        include_context = data.get('include_context', True)
+        
+        if not user_message:
+            return jsonify({'error': 'Message is required'}), 400
+        
+        # Get Ollama configuration
+        ollama_host = os.getenv('OLLAMA_HOST', 'http://ollama:11434')
+        ollama_model = os.getenv('OLLAMA_MODEL', 'llama3.2:3b')
+        
+        # Build context from database
+        context = {}
+        context_text = ""
+        
+        if include_context:
+            db = get_db_session()
+            
+            # Get recent incidents (last 10)
+            try:
+                incidents_query = """
+                    SELECT id, type, severity, status, timestamp, 
+                           resolved_at, details
+                    FROM incidents 
+                    ORDER BY timestamp DESC 
+                    LIMIT 10
+                """
+                logger.info("Fetching incidents for chat context...")
+                incidents = db.execute(text(incidents_query)).fetchall()
+                logger.info(f"Found {len(incidents)} incidents")
+                context['recent_incidents'] = [
+                    {
+                        'id': inc[0],
+                        'type': inc[1],
+                        'severity': inc[2],
+                        'status': inc[3],
+                        'timestamp': inc[4].isoformat() if inc[4] else None,
+                        'resolved_at': inc[5].isoformat() if inc[5] else None,
+                        'details': inc[6]
+                    } for inc in incidents
+                ]
+            except Exception as e:
+                logger.error(f"Could not fetch incidents: {e}", exc_info=True)
+                context['recent_incidents'] = []
+            
+            # Get recent remediation actions
+            try:
+                remediation_query = """
+                    SELECT action_type, target, success, timestamp, metadata
+                    FROM remediation_actions 
+                    ORDER BY timestamp DESC 
+                    LIMIT 10
+                """
+                remediations = db.execute(text(remediation_query)).fetchall()
+                context['recent_remediations'] = [
+                    {
+                        'action': rem[0],
+                        'target': rem[1],
+                        'success': rem[2],
+                        'timestamp': rem[3].isoformat() if rem[3] else None,
+                        'details': rem[4]
+                    } for rem in remediations
+                ]
+            except Exception as e:
+                logger.warning(f"Could not fetch remediations: {e}")
+                context['recent_remediations'] = []
+            
+            # If specific incident requested, get detailed info
+            if incident_id:
+                try:
+                    incident_detail_query = """
+                        SELECT id, type, severity, status, timestamp,
+                               resolved_at, details, details
+                        FROM incidents 
+                        WHERE id = :incident_id
+                    """
+                    incident = db.execute(text(incident_detail_query), 
+                                        {'incident_id': incident_id}).fetchone()
+                    if incident:
+                        context['requested_incident'] = {
+                            'id': incident[0],
+                            'type': incident[1],
+                            'severity': incident[2],
+                            'status': incident[3],
+                            'detected_at': incident[4].isoformat() if incident[4] else None,
+                            'resolved_at': incident[5].isoformat() if incident[5] else None,
+                            'root_cause': incident[6],
+                            'metrics': incident[7]
+                        }
+                except Exception as e:
+                    logger.warning(f"Could not fetch incident {incident_id}: {e}")
+            
+            db.close()
+            
+            # Build context text for LLM
+            from datetime import datetime
+            current_time = datetime.utcnow()
+            
+            # Summarize context
+            incidents_summary = context.get('recent_incidents', [])[:5]
+            remediations_summary = context.get('recent_remediations', [])[:5]
+            
+            context_text = f"""You are an AI assistant for Infrastructure Auto-Remediation. Help analyze incidents and troubleshoot issues.
+
+CURRENT TIME: {current_time.isoformat()}Z
+
+RECENT INCIDENTS (5 most recent, total {len(context.get('recent_incidents', []))}):
+{chr(10).join([f"ID{inc['id']}: {inc['type']} {inc['severity']} {inc['status']} at {inc['timestamp']}" 
+               for inc in incidents_summary])}
+
+RECENT REMEDIATIONS (5 most recent, total {len(context.get('recent_remediations', []))}):
+{chr(10).join([f"{rem['action']} {rem['target']} {'✓' if rem['success'] else '✗'} at {rem['timestamp']}" 
+               for rem in remediations_summary])}
+"""
+            
+            if 'requested_incident' in context:
+                inc = context['requested_incident']
+                context_text += f"""
+SPECIFIC INCIDENT DETAILS (ID {inc['id']}):
+- Type: {inc['type']}
+- Severity: {inc['severity']}
+- Status: {inc['status']}
+- Detected: {inc['detected_at']}
+- Resolved: {inc['resolved_at'] or 'Not yet resolved'}
+- Root Cause: {inc['root_cause'] or 'Under investigation'}
+"""
+        
+        # Prepare prompt for LLM
+        full_prompt = f"""{context_text}
+USER: {user_message}
+
+Answer concisely based on the context. Compare timestamps with current time for time-based questions."""
+        
+        # Call Ollama API
+        try:
+            ollama_url = f"{ollama_host}/api/generate"
+            ollama_payload = {
+                "model": ollama_model,
+                "prompt": full_prompt,
+                "stream": False
+            }
+            
+            logger.info(f"Calling Ollama at {ollama_url} with model {ollama_model}")
+            ollama_response = requests.post(
+                ollama_url, 
+                json=ollama_payload,
+                timeout=90
+            )
+            ollama_response.raise_for_status()
+            
+            ai_response = ollama_response.json().get('response', 'No response from AI')
+            
+            return jsonify({
+                'response': ai_response,
+                'context_used': {
+                    'incidents_count': len(context.get('recent_incidents', [])),
+                    'remediations_count': len(context.get('recent_remediations', [])),
+                    'specific_incident': incident_id
+                },
+                'timestamp': datetime.utcnow().isoformat()
+            })
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Ollama API error: {e}")
+            return jsonify({
+                'error': 'AI service temporarily unavailable',
+                'details': str(e)
+            }), 503
+        
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to process chat request',
+            'details': str(e)
+        }), 500

@@ -65,3 +65,37 @@ PUT /api/config
   "value": 0.10
 }
 ```
+
+## ML & AI Features
+
+### AI Chat Assistant
+- POST `/api/ml/chat`
+
+Interact with the AI assistant for incident analysis and troubleshooting.
+
+**Request:**
+```json
+{
+  "message": "What incidents occurred in the last 24 hours?",
+  "include_context": true,
+  "incident_id": 123
+}
+```
+
+**Response:**
+```json
+{
+  "response": "Based on recent data, there are 4 high_response_time incidents...",
+  "context_used": {
+    "recent_incidents": [...],
+    "recent_remediations": [...]
+  },
+  "timestamp": "2026-01-31T09:59:00.123456"
+}
+```
+
+### ML Endpoints
+- GET `/api/ml/metrics` - Export metrics for ML training
+- POST `/api/ml/predict` - Get anomaly predictions
+- GET `/api/ml/models` - List trained models
+- POST `/api/ml/train` - Trigger model training

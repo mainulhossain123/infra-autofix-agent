@@ -5,6 +5,7 @@ import IncidentsPage from './pages/IncidentsPage';
 import RemediationPage from './pages/RemediationPage';
 import ManualControlPage from './pages/ManualControlPage';
 import ConfigPage from './pages/ConfigPage';
+import ChatPage from './pages/ChatPage';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="remediation" element={<RemediationPage />} />
           <Route path="manual" element={<ManualControlPage />} />
           <Route path="config" element={<ConfigPage />} />
+          <Route path="chat" element={<ChatPage />} />
         </Route>
       </Routes>
     </Router>

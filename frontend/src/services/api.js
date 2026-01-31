@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create axios instance with base configuration
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
-  timeout: 10000,
+  timeout: 90000,  // 90 seconds for AI responses
   headers: {
     'Content-Type': 'application/json',
   },
@@ -52,5 +52,8 @@ export const updateConfig = (data) => api.put('/api/config', data);
 export const triggerCrash = () => api.post('/api/crash');
 export const triggerCPUSpike = (duration = 10) => api.post('/api/spike/cpu', { duration });
 export const triggerErrorSpike = (duration = 15) => api.post('/api/spike/errors', { duration });
+
+// AI Chat
+export const chatWithAI = (data) => api.post('/api/ml/chat', data);
 
 export default api;

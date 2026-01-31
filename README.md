@@ -1,103 +1,404 @@
-# infra-autofix-agent
+# Infrastructure Auto-Remediation Platform
 
 [![CI Pipeline](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/ci.yml)
-[![Security Scanning](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/security.yml/badge.svg)](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/security.yml)
-[![Docker Publish](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/mainulhossain123/infra-autofix-agent/actions/workflows/docker-publish.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **AI-Powered Auto-Remediation Platform** with 6 production-ready ML models for predictive incident detection, automated root cause analysis, and intelligent self-healing infrastructure.
+An open-source AI-powered platform for automated infrastructure monitoring, incident detection, and self-healing with integrated ML/AI capabilities.
 
-## ✨ Features
+## Features
 
-### Core Platform
-- 🔍 **Automated Incident Detection** - CPU spikes, memory leaks, high error rates, latency issues
-- 🔄 **Self-Healing** - Automatic container restarts with circuit breaker protection
-- 📊 **Full Observability Stack** - Grafana dashboards, Prometheus metrics, Loki logs
-- ⚡ **Real-time Updates** - WebSocket-based live dashboard
-- 🚨 **Smart Alerting** - Configurable thresholds with Prometheus alerts
-- 🐳 **Cloud-Native** - Docker/Kubernetes ready with multi-platform support
-- 🔐 **Production-Grade** - CI/CD pipelines, security scanning, automated testing
-- 📖 **Interactive API Documentation** - Swagger UI with live testing at http://localhost:5000/api/docs
+### 🤖 AI-Powered Intelligence
+- **AI Chat Assistant**: Interactive LLM-powered assistant for incident analysis and troubleshooting
+- **Root Cause Analysis**: Automated LLM-based analysis with actionable recommendations
+- **Natural Language Interface**: Ask questions about incidents, metrics, and system health in plain English
 
-### 🤖 AI/ML Capabilities (All 6 Phases Complete!)
-- **Phase 2: Anomaly Detection** - Isolation Forest with 92-95% accuracy, <10ms inference
-- **Phase 3: Time Series Forecasting** - Prophet models predict metrics 1-24 hours ahead
-- **Phase 4: LLM Integration** - Ollama + Llama 3.2 for root cause analysis (100% free, local)
-- **Phase 5: Failure Prediction** - LightGBM predicts system failures up to 72 hours ahead
-- **Phase 6: Continuous Learning** - Automated model retraining and performance monitoring
+### 🔮 ML & Predictive Analytics
+- **Anomaly Detection**: Real-time detection using Isolation Forest (92-95% accuracy)
+- **Failure Prediction**: Forecast infrastructure failures 1-72 hours ahead with LightGBM
+- **Time-Series Forecasting**: Prophet-based predictions to prevent metric threshold breaches
+- **Continuous Learning**: Auto-retraining models with performance tracking
 
-**Result**: Proactive incident prevention with AI-powered insights and zero API costs!
+### 🛡️ Auto-Remediation
+- **Self-Healing Infrastructure**: Automatic remediation with circuit breaker protection
+- **Manual Controls**: Override automation with one-click manual actions
+- **Smart Detection**: Real-time monitoring of CPU, memory, error rates, and latency
 
-## 🚀 Quick Start
+### 📊 Observability & Dashboard
+- **Real-Time Dashboard**: React UI with live WebSocket updates and incident timeline
+- **Full Observability Stack**: Integrated Prometheus, Grafana, and Loki
+- **Custom Metrics**: Comprehensive system and application metrics collection
 
-> **📘 New to the project?** See the [Complete Quick Start Guide](docs/quick-start.md) with step-by-step instructions and screenshots.
+### 🚀 Production Ready
+- **Docker Compose**: Quick local development setup
+- **Kubernetes Support**: Production-grade deployment with Helm charts
+- **CI/CD Pipeline**: GitHub Actions for automated testing and deployment
+
+## Quick Start
 
 ### Prerequisites
 
-- **Docker Compose**: Docker 20.10+, Docker Compose 2.0+
-- **Kubernetes** (optional): kubectl, Helm 3.0+, K8s cluster 1.20+
-- **ML Features** (optional): 4GB RAM for Ollama LLM service
+- **Docker Desktop 20.10+** with Docker Compose 2.0+
+- **8GB RAM minimum** (4GB for base services, +4GB for ML/AI features)
+- **10GB disk space** (includes AI model download)
 
-### Option 1: Docker Compose (Recommended)
+### 🚀 Basic Setup (5 minutes)
 
-**Basic Setup:**
+1. **Clone and start services**
+   ```bash
+   git clone https://github.com/mainulhossain123/infra-autofix-agent.git
+   cd infra-autofix-agent
+   
+   # Start core services (no ML/AI)
+   docker compose up -d
+   ```
+
+2. **Access the dashboard**
+   - Open http://localhost:3000
+   - View incidents, metrics, and manual controls
+
+### 🤖 With AI/ML Features (15 minutes)
+
+1. **Start all services including AI**
+   ```bash
+   # Start with ML services (includes Ollama LLM)
+   docker compose -f docker-compose.yml -f docker-compose.ml.yml up -d
+   ```
+
+2. **Download AI model (one-time, ~2GB)**
+   ```bash
+   docker exec ar_ollama ollama pull llama3.2:3b
+   ```
+
+3. **Verify AI services**
+   ```bash
+   # Check ML health
+   curl http://localhost:5000/api/ml/health
+   
+   # Expected: {"status": "healthy", "ml_enabled": true, "ollama_connected": true}
+   ```
+
+4. **Access AI Chat Assistant**
+   - Navigate to http://localhost:3000/chat
+   - Ask questions like:
+     - "What incidents occurred in the last 24 hours?"
+     - "Analyze the most recent critical incident"
+     - "What's the current system status?"
+
+### 📊 Service Access Points
+
+| Service | URL | Purpose | Credentials |
+|---------|-----|---------|-------------|
+| **Dashboard** | http://localhost:3000 | Main UI, incidents, metrics | - |
+| **AI Chat** | http://localhost:3000/chat | Interactive AI assistant | - |
+| **API** | http://localhost:5000 | REST API endpoints | - |
+| **API Docs** | http://localhost:5000/api/docs | Interactive Swagger UI | - |
+| **Grafana** | http://localhost:3001 | Metrics dashboards | admin/admin |
+| **Prometheus** | http://localhost:9090 | Metrics storage | - |
+
+### 🔧 Troubleshooting Setup
+
+**Services not starting?**
 ```bash
-git clone https://github.com/mainulhossain123/infra-autofix-agent.git
-cd infra-autofix-agent
-docker compose up -d
+# Check service status
+docker compose ps
+
+# View logs
+docker compose logs app
+docker compose logs bot
 ```
 
-**With ML/AI Features (Recommended):**
+**AI Chat not responding?**
 ```bash
-# Start with ML services (Ollama LLM + all AI features)
+# Check Ollama service
+docker logs ar_ollama --tail 50
+
+# Verify model downloaded
+docker exec ar_ollama ollama list
+```
+
+**Out of memory?**
+```bash
+# Check Docker resources
+docker stats
+
+# Increase Docker memory allocation in Docker Desktop settings (minimum 8GB)
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    User Interface                       │
+│  React Dashboard + AI Chat Assistant (Port 3000)        │
+└────────────┬────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────┐
+│              Application Layer (Port 5000)              │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │  Flask API Server                                 │  │
+│  │  • REST Endpoints    • WebSocket Events           │  │
+│  │  • Health Checks     • Configuration              │  │
+│  └───────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │  ML/AI Engine                                     │  │
+│  │  • Anomaly Detection (Isolation Forest)          │  │
+│  │  • Forecasting (Prophet)                         │  │
+│  │  • Failure Prediction (LightGBM)                 │  │
+│  │  • Root Cause Analysis (LLM via Ollama)          │  │
+│  └───────────────────────────────────────────────────┘  │
+└───┬─────────────────────┬──────────────────┬───────────┘
+    │                     │                  │
+    ▼                     ▼                  ▼
+┌──────────┐      ┌──────────────┐      ┌──────────────┐
+│PostgreSQL│      │ Ollama LLM   │      │ Remediation  │
+│ Database │      │ (Llama 3.2)  │      │     Bot      │
+│          │      │ Port 11434   │      │  Port 8000   │
+└──────────┘      └──────────────┘      └───────┬──────┘
+                                                 │
+        ┌────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────────┐
+│              Observability Stack                        │
+│  Prometheus (9090) • Grafana (3001) • Loki (3100)       │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+```
+Metrics Collection → Feature Engineering → ML Models → Incident Detection
+        ↓                                                      ↓
+   PostgreSQL ←─── Incident Created ───────────────────────────┘
+        │                  │
+        │                  ├─→ Failure Prediction
+        │                  ├─→ Time Series Forecast
+        │                  └─→ LLM Root Cause Analysis
+        │                          │
+        ↓                          ↓
+  Continuous Learning ←──── Store ML Results
+  (Auto-retraining)         Display in Dashboard
+```
+
+## ML/AI Capabilities
+
+### Anomaly Detection
+- **Algorithm**: Isolation Forest
+- **Accuracy**: 92-95%
+- **Inference**: <10ms
+- **Features**: 100+ engineered metrics
+
+### Time Series Forecasting  
+- **Algorithm**: Facebook Prophet
+- **Prediction Window**: 1-24 hours ahead
+- **Use Case**: Proactive breach detection
+
+### LLM Integration
+- **Model**: Llama 3.2 (3B parameters via Ollama)
+- **Cost**: Free (runs locally, no API keys needed)
+- **Capabilities**: 
+  - Root cause analysis with actionable recommendations
+  - Interactive chat assistant for troubleshooting
+  - Natural language incident queries
+  - Context-aware responses based on recent incidents and metrics
+
+### Failure Prediction
+- **Algorithm**: LightGBM
+- **Prediction Window**: 1-72 hours
+- **Risk Levels**: High/Medium/Low
+
+### Continuous Learning
+- **Auto-Retraining**: Every 24 hours
+- **Performance Tracking**: Accuracy, precision, MAE
+- **Model Versioning**: Full history in database
+
+## API Reference
+
+### Core Endpoints
+
+```bash
+# Health check
+GET /api/health
+
+# Get incidents
+GET /api/incidents?status=open&severity=high
+
+# Trigger manual remediation
+POST /api/remediation/manual
+{
+  "action_type": "restart_container",
+  "target": "ar_app",
+  "reason": "Manual restart"
+}
+```
+
+### ML Endpoints
+
+```bash
+# AI Chat Assistant
+POST /api/ml/chat
+{
+  "message": "What incidents occurred in the last 24 hours?",
+  "include_context": true
+}
+
+# Anomaly detection
+POST /api/ml/anomaly/predict
+GET /api/ml/anomaly/status
+
+# Forecasting
+GET /api/ml/forecast/predict?target_metric=cpu&hours_ahead=6
+
+# LLM root cause analysis
+POST /api/ml/analyze/incident/{incident_id}
+
+# Failure prediction
+POST /api/ml/failure-prediction/predict
+```
+
+**Interactive API documentation**: http://localhost:5000/api/docs
+
+## Deployment
+
+### Docker Compose (Development)
+
+```bash
+# Basic setup
+docker compose up -d
+
+# With ML features
 docker compose -f docker-compose.yml -f docker-compose.ml.yml up -d
 
-# Download the LLM model (one-time setup, ~2GB)
-docker exec -it ar_ollama ollama pull llama3.2:3b
+# Stop services
+docker compose down
 ```
 
-**Access Services:**
-- 🎨 Dashboard: http://localhost:3000
-- 📖 Swagger API: http://localhost:5000/api/docs
-- 📊 Grafana: http://localhost:3001 (admin/admin)
-- 🔧 Backend API: http://localhost:5000
-- 📈 Prometheus: http://localhost:9090
+### Kubernetes (Production)
 
-### Option 2: Kubernetes (Production)
-
-**With Helm:**
 ```bash
-# Development
-helm install infra-autofix ./helm/infra-autofix \
-  --namespace infra-autofix-dev \
-  --create-namespace \
-  --values ./helm/infra-autofix/values-dev.yaml
-
-# Production
-helm install infra-autofix ./helm/infra-autofix \
-  --namespace infra-autofix-prod \
-  --create-namespace \
-  --values ./helm/infra-autofix/values-prod.yaml
-```
-
-**With kubectl:**
-```bash
+# Using kubectl
 kubectl apply -k k8s/
 
-# Access services at (Docker Desktop):
-# Dashboard: http://localhost
-# Grafana: http://localhost:3000 (admin/admin)
-# API: http://localhost:5000
+# Using Helm
+helm install infra-autofix ./helm/infra-autofix \
+  --namespace infra-autofix \
+  --create-namespace
+
+# Check status
+kubectl get pods -n infra-autofix
 ```
 
-**Or use deployment script:**
+See [Kubernetes Guide](docs/kubernetes.md) for production deployment details.
+
+## Configuration
+
+Key environment variables:
+
 ```bash
-# PowerShell
-.\scripts\deploy-k8s.ps1 -Method helm -Environment dev
+# Application
+FLASK_ENV=production
+ERROR_RATE_THRESHOLD=0.2
+CPU_THRESHOLD=80
 
-# Bash
-./scripts/deploy-k8s.sh helm dev
+# ML Features
+ML_ENABLED=true
+OLLAMA_HOST=http://ollama:11434
+OLLAMA_MODEL=llama3.2:3b
+
+# Database
+DATABASE_URL=postgresql://user:pass@postgres:5432/db
 ```
+
+## Monitoring
+
+### Grafana Dashboards
+- System Overview (incidents, remediations, success rate)
+- ML Performance (accuracy, predictions, retraining)
+- Infrastructure Metrics (CPU, memory, disk)
+
+### Prometheus Alerts
+- High error rate (>5%)
+- CPU usage (>90%)
+- Memory usage (>85%)
+- Incident rate spike
+
+### Logs
+Access via Loki or Grafana Explore:
+```
+{container="ar_app"}         # Application logs
+{container="ar_bot"}         # Remediation bot logs
+{container="ar_frontend"}    # UI logs
+```
+
+## Development
+
+### Local Development Setup
+
+```bash
+# Backend
+cd app
+python -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+pip install -r requirements.txt
+python app.py
+
+# Frontend
+cd frontend
+npm install
+npm run dev
+
+# Bot
+cd bot  
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python bot.py
+```
+
+### Running Tests
+
+```bash
+# Backend tests
+cd app
+pytest tests/ --cov
+
+# Frontend tests
+cd frontend
+npm test
+```
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## Documentation
+
+- [Quick Start Guide](docs/quick-start.md) - Detailed setup instructions
+- [API Documentation](docs/API.md) - Complete API reference
+- [Kubernetes Guide](docs/kubernetes.md) - Production deployment
+- [Operations Guide](docs/operations.md) - Configuration and troubleshooting
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details
+
+## Acknowledgments
+
+- Built with Flask, React, PostgreSQL
+- ML powered by scikit-learn, LightGBM, Prophet
+- LLM integration via Ollama (Llama 3.2)
+- Monitoring via Prometheus, Grafana, Loki
+
+---
+
+**Project Status**: Production Ready | **Version**: 1.0 | **License**: MIT
 
 > **⚠️ Important**: Grafana dashboards need to be imported manually in Kubernetes. See [Quick Start Guide](docs/quick-start.md#6-configure-grafana-dashboards).
 
@@ -501,6 +802,7 @@ See [docs/github-actions.md](docs/github-actions.md) for details.
 ### Local Development (Docker Compose)
 ```
 Main Dashboard:        http://localhost:3000
+AI Chat Assistant:     http://localhost:3000/chat
 Swagger API Docs:      http://localhost:5000/api/docs
 REST API:              http://localhost:5000/api/*
 WebSocket:             ws://localhost:5000/ws

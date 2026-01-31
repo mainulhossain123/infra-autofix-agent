@@ -17,7 +17,7 @@ export default function ManualControlPage() {
       icon: RotateCw,
       color: 'warning',
       action: () => triggerManualRemediation({
-        action: 'restart_container',
+        action_type: 'restart_container',
         target: 'ar_app',
         reason: 'Manual restart via dashboard'
       }),

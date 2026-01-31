@@ -5,6 +5,7 @@ import {
   History, 
   PlayCircle, 
   Settings,
+  MessageSquare,
   X
 } from 'lucide-react';
 
@@ -13,6 +14,7 @@ const navigation = [
   { name: 'Incidents', to: '/incidents', icon: AlertTriangle },
   { name: 'Remediation History', to: '/remediation', icon: History },
   { name: 'Manual Control', to: '/manual', icon: PlayCircle },
+  { name: 'AI Assistant', to: '/chat', icon: MessageSquare },
   { name: 'Configuration', to: '/config', icon: Settings },
 ];
 

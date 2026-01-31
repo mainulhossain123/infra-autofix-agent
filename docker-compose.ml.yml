@@ -66,9 +66,7 @@ services:
     networks:
       - remediation_network
     restart: unless-stopped
-    command: python -c "print('ML Trainer ready. Run training scripts manually or via cron.')"
-    # For scheduled training, replace command with:
-    # command: python ml/train_scheduler.py
+    command: python train_scheduler.py
 
 volumes:
   ollama_data:

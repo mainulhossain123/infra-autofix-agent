@@ -69,6 +69,47 @@ CREATE TABLE IF NOT EXISTS metrics_snapshots (
 CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics_snapshots(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_metrics_service ON metrics_snapshots(service_name, timestamp DESC);
 
+-- ML metrics history table: stores time-series data for ML training
+CREATE TABLE IF NOT EXISTS metrics_history (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    service_name VARCHAR(100) DEFAULT 'ar_app',
+    error_rate DECIMAL(5,4) DEFAULT 0.0000,
+    cpu_usage DECIMAL(5,2) DEFAULT 0.00,
+    memory_usage DECIMAL(10,2) DEFAULT 0.00,
+    response_time DECIMAL(10,2) DEFAULT 0.00,
+    request_count INTEGER DEFAULT 0,
+    error_count INTEGER DEFAULT 0,
+    is_anomaly BOOLEAN DEFAULT FALSE,
+    anomaly_score DECIMAL(5,4),
+    metadata JSONB DEFAULT '{}'
+);
+
+-- Index for ML queries
+CREATE INDEX IF NOT EXISTS idx_metrics_history_timestamp ON metrics_history(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_metrics_history_service ON metrics_history(service_name, timestamp DESC);
+
+-- ML models table: stores trained ML model metadata and binaries
+CREATE TABLE IF NOT EXISTS ml_models (
+    id SERIAL PRIMARY KEY,
+    model_type VARCHAR(100) NOT NULL,
+    model_name VARCHAR(200),
+    version VARCHAR(50),
+    model_data BYTEA,
+    accuracy DECIMAL(5,4),
+    precision_score DECIMAL(5,4),
+    recall DECIMAL(5,4),
+    f1_score DECIMAL(5,4),
+    training_samples INTEGER,
+    is_active BOOLEAN DEFAULT TRUE,
+    trained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    metadata JSONB DEFAULT '{}'
+);
+
+-- Index for ML model queries
+CREATE INDEX IF NOT EXISTS idx_ml_models_type ON ml_models(model_type);
+CREATE INDEX IF NOT EXISTS idx_ml_models_active ON ml_models(is_active);
+
 -- Configuration table: dynamic bot configuration
 CREATE TABLE IF NOT EXISTS config (
     id SERIAL PRIMARY KEY,
