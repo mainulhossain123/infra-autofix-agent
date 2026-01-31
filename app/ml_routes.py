@@ -1481,7 +1481,6 @@ def check_and_retrain():
         
     except Exception as e:
         logger.error(f"Error in check and retrain: {e}", exc_info=True)
-        session.rollback()
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -1505,7 +1504,6 @@ def retrain_all_models():
         
     except Exception as e:
         logger.error(f"Error retraining all models: {e}", exc_info=True)
-        session.rollback()
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -1582,7 +1580,7 @@ def get_ml_metrics_summary():
     Get summary of ML system performance across all models.
     """
     try:
-        from sqlalchemy import text
+        session = get_db_session()
         
         # Get overall stats
         stats_query = text("""
@@ -1633,10 +1631,13 @@ def get_ml_metrics_summary():
             'ml_incidents_detected': int(ml_incidents) if ml_incidents else 0
         }
         
+        session.close()
         return jsonify(summary)
         
     except Exception as e:
         logger.error(f"Error getting ML metrics summary: {e}", exc_info=True)
+        if 'session' in locals():
+            session.close()
         return jsonify({
             'status': 'error',
             'message': str(e)
