@@ -1187,11 +1187,11 @@ def train_failure_predictor():
         hours_back = data.get('hours_back', 168)  # 7 days default
         num_iterations = data.get('num_iterations', 100)
         
-        predictor = FailurePredictor(db.session.connection())
+        session = get_db_session()
+        predictor = FailurePredictor(session.connection())
         metrics = predictor.train(hours_back=hours_back, num_iterations=num_iterations)
         
         # Store model metadata
-        from sqlalchemy import text
         store_query = text("""
             INSERT INTO ml_models (model_name, model_type, version, accuracy, metadata, trained_at)
             VALUES ('failure_predictor', 'lightgbm', 1, :accuracy, :metadata, NOW())
@@ -1201,11 +1201,12 @@ def train_failure_predictor():
                 trained_at = NOW()
         """)
         
-        db.session.execute(store_query, {
+        session.execute(store_query, {
             'accuracy': metrics.get('train_accuracy', 0.0),
             'metadata': str(metrics)
         })
-        db.session.commit()
+        session.commit()
+        session.close()
         
         return jsonify({
             'status': 'success',
@@ -1221,7 +1222,9 @@ def train_failure_predictor():
         
     except Exception as e:
         logger.error(f"Error training failure predictor: {e}", exc_info=True)
-        db.session.rollback()
+        if 'session' in locals():
+            session.rollback()
+            session.close()
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -1244,17 +1247,18 @@ def predict_failure():
         data = request.get_json() or {}
         lookback_hours = data.get('lookback_hours', 1)
         
-        predictor = FailurePredictor(db.session.connection())
+        session = get_db_session()
+        predictor = FailurePredictor(session.connection())
         
         # Load model if exists (in production, cache this)
-        from sqlalchemy import text
         check_query = text("""
             SELECT COUNT(*) as count FROM ml_models 
             WHERE model_name = 'failure_predictor'
         """)
-        result = db.session.execute(check_query).fetchone()
+        result = session.execute(check_query).fetchone()
         
         if result[0] == 0:
+            session.close()
             return jsonify({
                 'status': 'error',
                 'message': 'Model not trained. Train first using /api/ml/failure-prediction/train'
@@ -1276,14 +1280,15 @@ def predict_failure():
                 VALUES (NOW(), :probability, :risk_level, :lookback_hours, :metadata)
             """)
             
-            db.session.execute(store_query, {
+            session.execute(store_query, {
                 'probability': prediction['probability'],
                 'risk_level': prediction['risk_level'],
                 'lookback_hours': lookback_hours,
                 'metadata': str(prediction)
             })
-            db.session.commit()
+            session.commit()
         
+        session.close()
         return jsonify(prediction)
         
     except Exception as e:
@@ -1310,7 +1315,8 @@ def forecast_failures():
         data = request.get_json() or {}
         hours_ahead = min(data.get('hours_ahead', 24), 72)  # Max 72 hours
         
-        predictor = FailurePredictor(db.session.connection())
+        session = get_db_session()
+        predictor = FailurePredictor(session.connection())
         
         # Quick train if needed
         if not predictor.is_trained:
@@ -1318,6 +1324,7 @@ def forecast_failures():
             predictor.train(hours_back=24, num_iterations=50)
         
         predictions = predictor.predict_batch(hours_ahead=hours_ahead)
+        session.close()
         
         return jsonify({
             'status': 'success',
@@ -1339,7 +1346,7 @@ def get_failure_alerts():
     Get recent failure predictions that exceed alert thresholds.
     """
     try:
-        from sqlalchemy import text
+        session = get_db_session()
         
         query = text("""
             SELECT 
@@ -1354,7 +1361,7 @@ def get_failure_alerts():
             LIMIT 50
         """)
         
-        result = db.session.execute(query)
+        result = session.execute(query)
         alerts = []
         
         for row in result:
@@ -1388,7 +1395,8 @@ def get_predictor_info():
     try:
         from bot.ml.failure_predictor import FailurePredictor
         
-        predictor = FailurePredictor(db.session.connection())
+        session = get_db_session()
+        predictor = FailurePredictor(session.connection())
         
         # Try to train a quick model if not trained
         if not predictor.is_trained:
@@ -1409,7 +1417,7 @@ def get_predictor_info():
             LIMIT 5
         """)
         
-        result = db.session.execute(history_query)
+        result = session.execute(history_query)
         training_history = []
         
         for row in result:
@@ -1443,7 +1451,7 @@ def get_continuous_learning_status():
     try:
         from bot.ml.continuous_learning import ContinuousLearning
         
-        cl = ContinuousLearning(db.session.connection())
+        cl = ContinuousLearning(get_db_session().connection())
         status = cl.get_model_status()
         
         return jsonify(status)
@@ -1466,14 +1474,14 @@ def check_and_retrain():
     try:
         from bot.ml.continuous_learning import ContinuousLearning
         
-        cl = ContinuousLearning(db.session.connection())
+        cl = ContinuousLearning(get_db_session().connection())
         actions = cl.check_and_retrain()
         
         return jsonify(actions)
         
     except Exception as e:
         logger.error(f"Error in check and retrain: {e}", exc_info=True)
-        db.session.rollback()
+        session.rollback()
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -1490,14 +1498,14 @@ def retrain_all_models():
     try:
         from bot.ml.continuous_learning import ContinuousLearning
         
-        cl = ContinuousLearning(db.session.connection())
+        cl = ContinuousLearning(get_db_session().connection())
         results = cl.retrain_all_models()
         
         return jsonify(results)
         
     except Exception as e:
         logger.error(f"Error retraining all models: {e}", exc_info=True)
-        db.session.rollback()
+        session.rollback()
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -1523,7 +1531,7 @@ def evaluate_model(model_name):
         data = request.get_json() or {}
         hours_back = data.get('hours_back', 24)
         
-        cl = ContinuousLearning(db.session.connection())
+        cl = ContinuousLearning(get_db_session().connection())
         performance = cl.evaluate_model_performance(model_name, hours_back)
         
         return jsonify(performance)
@@ -1551,7 +1559,7 @@ def get_training_history():
         model_name = request.args.get('model_name')
         limit = int(request.args.get('limit', 10))
         
-        cl = ContinuousLearning(db.session.connection())
+        cl = ContinuousLearning(get_db_session().connection())
         history = cl.get_training_history(model_name=model_name, limit=limit)
         
         return jsonify({
@@ -1586,7 +1594,7 @@ def get_ml_metrics_summary():
             WHERE model_name IN ('anomaly_detector', 'failure_predictor')
         """)
         
-        stats = db.session.execute(stats_query).fetchone()
+        stats = session.execute(stats_query).fetchone()
         
         # Get recent predictions count
         predictions_query = text("""
@@ -1596,7 +1604,7 @@ def get_ml_metrics_summary():
                 (SELECT COUNT(*) FROM metric_forecasts WHERE forecast_time > NOW() - INTERVAL '24 hours') as forecasts
         """)
         
-        predictions = db.session.execute(predictions_query).fetchone()
+        predictions = session.execute(predictions_query).fetchone()
         
         # Get incidents detected by ML
         ml_incidents_query = text("""
@@ -1606,7 +1614,7 @@ def get_ml_metrics_summary():
                 AND detected_at > NOW() - INTERVAL '24 hours'
         """)
         
-        ml_incidents = db.session.execute(ml_incidents_query).scalar()
+        ml_incidents = session.execute(ml_incidents_query).scalar()
         
         summary = {
             'status': 'success',
@@ -1836,3 +1844,4 @@ Answer concisely based on the context. Compare timestamps with current time for 
             'error': 'Failed to process chat request',
             'details': str(e)
         }), 500
+

@@ -29,6 +29,13 @@ from simulate import start_simulator
 from websocket import init_socketio, broadcast_metric_update, broadcast_health_update
 from db_monitor import DatabaseMonitor
 
+# Configure logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # Import ML module (Phase 1: Data Pipeline)
 try:
     from ml_routes import ml_bp
@@ -38,12 +45,6 @@ except ImportError as e:
     logger.warning(f"ML module not available: {e}")
     ML_ENABLED = False
     ml_bp = None
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
