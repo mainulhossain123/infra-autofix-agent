@@ -109,41 +109,126 @@ See [Kubernetes Deployment Guide](docs/kubernetes.md) for detailed instructions.
 
 | Service | URL | Credentials | Notes |
 |---------|-----|-------------|-------|
-| 🎨 React Dashboard | http://localhost:3000 | - | Real-time monitoring UI |
-| 📖 **Swagger API Docs** | **http://localhost:5000/api/docs** | - | **Interactive API testing** |
+| 🎨 **React Dashboard** | **http://localhost:3000** | - | **Main UI with ML insights** |
+| 📖 **Swagger API Docs** | **http://localhost:5000/api/docs** | - | **Interactive ML API testing** |
 | 🔧 Backend API | http://localhost:5000 | - | REST + WebSocket |
 | 📊 Grafana | http://localhost:3001 | admin/admin | Dashboards & alerts |
 | 📈 Prometheus | http://localhost:9090 | - | Metrics query UI |
 | 📝 Loki | http://localhost:3100 | - | Log aggregation |
-| 🤖 Ollama (ML) | http://localhost:11434 | - | LLM service |
+| 🤖 Ollama (LLM) | http://localhost:11434 | - | Local AI model API |
+
+**ML/AI Feature Access:**
+- **Dashboard UI**: http://localhost:3000 - View incidents with AI analysis, predictions, and anomaly scores
+- **Swagger API**: http://localhost:5000/api/docs - Test all ML endpoints interactively
+- **Direct API**: http://localhost:5000/api/ml/* - Programmatic access to ML features
+  - `/api/ml/anomaly/*` - Anomaly detection
+  - `/api/ml/forecast/*` - Time series predictions
+  - `/api/ml/failure-prediction/*` - Failure forecasting
+  - `/api/ml/analyze/*` - LLM incident analysis
+  - `/api/ml/continuous-learning/*` - Model management
 
 **Kubernetes URLs (Docker Desktop):**
 
 | Service | URL | Credentials | Purpose |
 |---------|-----|-------------|---------|
-| 🎨 Dashboard | http://localhost | - | Main UI (LoadBalancer) |
-| 📖 **Swagger API** | **http://localhost:5000/api/docs** | - | **API documentation** |
+| 🎨 **Dashboard** | **http://localhost** | - | **Main UI with ML insights** |
+| 📖 **Swagger API** | **http://localhost:5000/api/docs** | - | **Interactive ML API docs** |
 | 🔧 Backend API | http://localhost:5000 | - | REST API + WebSocket |
 | 📊 Grafana | http://localhost:3000 | admin/admin | Monitoring dashboards |
 | 📈 Prometheus | http://localhost:9090 | - | Metrics database |
 
-> **💡 Tip**: Docker Desktop automatically maps LoadBalancer services to localhost!
+> **💡 ML Features**: All AI/ML insights are **integrated into the main dashboard**. No separate ML UI needed - anomaly scores, predictions, and AI analysis are displayed directly in the incidents view!
 
 ## 🏗️ Architecture
 
+**Full System Architecture:**
 ```
-┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
-│  React          │────▶│  Flask API   │────▶│  PostgreSQL │
-│  Dashboard      │◀────│  + ML Models │◀────│  + ML Data  │
-│  (Port 3000)    │ WS  │  (Port 5000) │     │  (Port 5432)│
-└─────────────────┘     └──────────────┘     └─────────────┘
-                               │
-                    ┌──────────┴──────────┐
-                    ▼                     ▼
-             ┌──────────────┐      ┌─────────────┐
-             │ Remediation  │      │   Ollama    │
-             │     Bot      │      │  LLM (3.2)  │
-             │  + ML Loop   │      │ Port 11434  │
+┌─────────────────────────────────────────────────────────────────┐
+│                        User Interfaces                          │
+├─────────────────────────────────────────────────────────────────┤
+│  🎨 React Dashboard (3000)    │  📖 Swagger API Docs (5000)    │
+│  - Real-time monitoring        │  - Interactive ML API testing  │
+│  - AI insights display         │  - All endpoints documented    │
+│  - Incident management         │  - Try ML features live        │
+└────────────────┬────────────────────────────┬───────────────────┘
+                 │                            │
+                 ▼                            ▼
+       ┌─────────────────────────────────────────────────┐
+       │         Flask API + ML Engine (5000)            │
+       │  ┌──────────────────────────────────────────┐   │
+       │  │  REST API  │  WebSocket  │  ML Routes   │   │
+       │  └──────────────────────────────────────────┘   │
+       │  ┌──────────────────────────────────────────┐   │
+       │  │          6 ML Models Pipeline            │   │
+       │  │  Phase 2: Anomaly Detection (IForest)    │   │
+       │  │  Phase 3: Time Series Forecast (Prophet) │   │
+       │  │  Phase 4: LLM Analysis (Ollama)          │   │
+       │  │  Phase 5: Failure Prediction (LightGBM)  │   │
+       │  │  Phase 6: Continuous Learning            │   │
+       │  └──────────────────────────────────────────┘   │
+       └────┬──────────────────┬─────────────────┬───────┘
+            │                  │                 │
+            ▼                  ▼                 ▼
+   ┌────────────────┐  ┌─────────────┐  ┌──────────────┐
+   │  PostgreSQL    │  │   Ollama    │  │ Remediation  │
+   │  Database      │  │ LLM Service │  │     Bot      │
+   │  - Metrics     │  │ Llama 3.2   │  │ - Auto-heal  │
+   │  - Incidents   │  │ (3B params) │  │ - ML checks  │
+   │  - ML Data     │  │  Port 11434 │  │ - Retraining │
+   └────────────────┘  └─────────────┘  └──────┬───────┘
+                                                │
+            ┌───────────────────────────────────┴──────┐
+            │                                          │
+            ▼                                          ▼
+   ┌──────────────────┐                    ┌──────────────────┐
+   │  Observability   │                    │   Container      │
+   │  Stack           │                    │   Infrastructure │
+   ├──────────────────┤                    ├──────────────────┤
+   │ • Prometheus     │◀───────────────────│ • App Containers │
+   │ • Grafana        │                    │ • Docker/K8s     │
+   │ • Loki + Promtail│                    │ • Health Checks  │
+   └──────────────────┘                    └──────────────────┘
+```
+
+**ML Pipeline Data Flow:**
+```
+┌──────────────┐     ┌────────────────────┐     ┌─────────────────┐
+│   Metrics    │────▶│ Feature Engineering│────▶│  Anomaly Model  │
+│  Collection  │     │   (100+ features)  │     │ (Isolation Tree)│
+└──────────────┘     └────────────────────┘     └────────┬────────┘
+                                                          │
+                     ┌────────────────────────────────────┘
+                     │
+                     ▼
+         ┌──────────────────────┐
+         │  Incident Created?   │
+         └──────┬────────┬──────┘
+                │ Yes    │ No
+                ▼        └─────▶ Continue monitoring
+    ┌──────────────────────┐
+    │  Parallel ML Tasks   │
+    ├──────────────────────┤
+    │ 1. Failure Predictor │──▶ Risk: High/Med/Low
+    │ 2. Time Series Fcst  │──▶ Breach in N hours
+    │ 3. LLM Analyzer      │──▶ Root cause + fixes
+    └──────┬───────────────┘
+           │
+           ▼
+    ┌─────────────────┐      ┌──────────────────┐
+    │  Store Results  │─────▶│  Display in UI   │
+    │  in Database    │      │  & Send Alerts   │
+    └─────────────────┘      └──────────────────┘
+           │
+           ▼
+    ┌─────────────────────┐
+    │ Continuous Learning │
+    │ - Track performance │
+    │ - Auto-retrain      │
+    │ - Model versioning  │
+    └─────────────────────┘
+```
+
+## 🤖 ML/AI Features Deep Dive
              └──────────────┘      └─────────────┘
                     │
      ┌──────────────┼──────────────┐
@@ -151,57 +236,93 @@ See [Kubernetes Deployment Guide](docs/kubernetes.md) for detailed instructions.
 ┌─────────┐  ┌──────────┐  ┌──────────┐
 │Prometheus│ │ Grafana  │  │   Loki   │
 │  :9090   │ │  :3001   │  │  :3100   │
-└─────────┘  └──────────┘  └──────────┘
-```
-
-### ML Pipeline (6 Phases)
-```
-Metrics → [Feature Extraction] → [Anomaly Detection] → [Forecasting]
-                                          ↓                    ↓
-                                  [Failure Prediction] → [LLM Analysis]
-                                          ↓
-                                  [Continuous Learning]
-                                          ↓
-                                  [Auto-Retraining]
 ```
 
 ## 🤖 ML/AI Features Deep Dive
+
+> **🎨 Access ML Features**: All AI insights are integrated into the **main dashboard** at http://localhost:3000. View anomaly scores, predictions, and AI analysis directly in the incidents view. For programmatic access, use the **Swagger UI** at http://localhost:5000/api/docs to test all ML endpoints interactively.
 
 ### Phase 2: Anomaly Detection
 - **Algorithm**: Isolation Forest
 - **Features**: 100+ engineered metrics
 - **Performance**: 92-95% accuracy, <10ms inference
 - **Triggers**: Automatic incident creation for ML-detected anomalies
+- **UI**: Anomaly scores shown in dashboard incident cards
 - **API**: `POST /api/ml/anomaly/train`, `POST /api/ml/anomaly/predict`
+- **Test**: `.\scripts\test-phase2.ps1`
 
 ### Phase 3: Time Series Forecasting
 - **Algorithm**: Facebook Prophet
 - **Capabilities**: 1-24 hour ahead predictions
 - **Features**: Daily/weekly seasonality detection
 - **Use Case**: Proactive breach detection before thresholds hit
+- **UI**: Predicted values displayed in metrics charts
 - **API**: `POST /api/ml/forecast/train`, `GET /api/ml/forecast/predict`
+- **Test**: `.\scripts\test-phase3.ps1`
 
 ### Phase 4: LLM Integration
 - **Model**: Ollama + Llama 3.2 (3B parameters)
 - **Cost**: 100% free (runs locally)
 - **Features**: Root cause analysis, natural language reports, remediation suggestions
 - **Requirements**: 4GB RAM, ~2GB model download
+- **UI**: AI-generated insights shown in incident details
 - **API**: `POST /api/ml/analyze/incident/<id>`, `GET /api/ml/generate-report/<id>`
 - **Health Check**: `GET /api/ml/llm/health`
+- **Setup**: `docker exec -it ar_ollama ollama pull llama3.2:3b`
+- **Test**: `.\scripts\test-phase4.ps1`
 
 ### Phase 5: Failure Prediction
 - **Algorithm**: LightGBM (gradient boosting)
 - **Prediction Window**: 1-72 hours ahead
 - **Risk Levels**: High (70%+), Medium (40-70%), Low (<40%)
 - **Proactive Alerts**: Creates "predicted_failure" incidents
+- **UI**: Risk indicators and predictions in dashboard alerts
 - **API**: `POST /api/ml/failure-prediction/train`, `POST /api/ml/failure-prediction/predict`
+- **Test**: `.\scripts\test-phase5.ps1`
 
 ### Phase 6: Continuous Learning
 - **Auto-Retraining**: Every 24 hours or when 100+ new samples collected
 - **Performance Monitoring**: Tracks accuracy, precision, MAE
 - **Model Versioning**: Full training history in database
 - **Triggers**: Time-based, data-volume, performance degradation
+- **UI**: Model status and retraining history in config page (future enhancement)
 - **API**: `GET /api/ml/continuous-learning/status`, `POST /api/ml/continuous-learning/check-retrain`
+- **Test**: `.\scripts\test-phase6.ps1`
+
+### How to Access ML Features
+
+**1. Main Dashboard (http://localhost:3000)**
+- View incidents with anomaly scores
+- See AI-generated root cause analysis
+- Monitor predicted failures
+- Check risk indicators
+
+**2. Swagger API (http://localhost:5000/api/docs)**
+- Interactive ML endpoint testing
+- Try predictions with custom data
+- Explore all ML API capabilities
+- View request/response schemas
+
+**3. Grafana Dashboards (http://localhost:3001)**
+- ML model performance metrics
+- Prediction accuracy over time
+- Model retraining history
+- Anomaly detection rates
+
+**4. Direct API Calls**
+```bash
+# Check ML system status
+curl http://localhost:5000/api/ml/continuous-learning/status
+
+# Get incident AI analysis
+curl http://localhost:5000/api/ml/analyze/incident/1
+
+# Check LLM health
+curl http://localhost:5000/api/ml/llm/health
+
+# Predict next hour failures
+curl -X POST http://localhost:5000/api/ml/failure-prediction/predict
+```
 
 **Quick ML Setup:**
 ```bash
