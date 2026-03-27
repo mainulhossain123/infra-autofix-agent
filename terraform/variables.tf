@@ -16,12 +16,6 @@ variable "key_pair_name" {
   default     = "infra-autofix-key"
 }
 
-variable "security_group_name" {
-  description = "Name of the Security Group you created manually in Step 3"
-  type        = string
-  default     = "infra-autofix-sg"
-}
-
 variable "groq_api_key" {
   description = "Groq API key for AI chat (get free key at https://console.groq.com)"
   type        = string
