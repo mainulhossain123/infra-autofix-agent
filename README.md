@@ -5,14 +5,18 @@
 
 An open-source AI-powered platform for automated infrastructure monitoring, incident detection, and self-healing with integrated ML/AI capabilities.
 
+> **AI Chat uses the [Groq API](https://console.groq.com) (free tier) — an internet connection and a free Groq API key are required for the AI Chat Assistant.** All other ML features (anomaly detection, forecasting, failure prediction) run entirely locally with no external dependencies.
+
+---
+
 ## Features
 
 ### 🤖 AI-Powered Intelligence
-- **AI Chat Assistant**: Interactive LLM-powered assistant for incident analysis and troubleshooting
+- **AI Chat Assistant**: Interactive LLM-powered assistant (Groq — Llama 3.3 70B) for incident analysis and troubleshooting
 - **Root Cause Analysis**: Automated LLM-based analysis with actionable recommendations
 - **Natural Language Interface**: Ask questions about incidents, metrics, and system health in plain English
 
-### 🔮 ML & Predictive Analytics
+### 🔮 ML & Predictive Analytics (fully local, no API key needed)
 - **Anomaly Detection**: Real-time detection using Isolation Forest (92-95% accuracy)
 - **Failure Prediction**: Forecast infrastructure failures 1-72 hours ahead with LightGBM
 - **Time-Series Forecasting**: Prophet-based predictions to prevent metric threshold breaches
@@ -25,204 +29,332 @@ An open-source AI-powered platform for automated infrastructure monitoring, inci
 
 ### 📊 Observability & Dashboard
 - **Real-Time Dashboard**: React UI with live WebSocket updates and incident timeline
+- **Live Notification Bell**: Active incident count badge with dropdown showing severity and links
+- **System Logs Page**: Health banner, CPU/memory/error rate/uptime cards, incident severity summary
 - **Full Observability Stack**: Integrated Prometheus, Grafana, and Loki
 - **Custom Metrics**: Comprehensive system and application metrics collection
 
 ### 🚀 Production Ready
-- **Docker Compose**: Quick local development setup
-- **Kubernetes Support**: Production-grade deployment with Helm charts
-- **CI/CD Pipeline**: GitHub Actions for automated testing and deployment
+- **Docker Compose**: Quick local development and production deployment
+- **AWS EC2 Deployment**: Terraform-managed infrastructure on AWS free tier (t2.micro)
+- **CI/CD Pipeline**: GitHub Actions for automated testing and one-click deployment to EC2
 
-## Quick Start
+---
+
+## Groq API Key Requirement
+
+The AI Chat Assistant calls the [Groq API](https://console.groq.com) to run `llama-3.3-70b-versatile`. This is a **free external API** — Groq offers a generous free tier with no credit card required.
+
+**Without a Groq key:**
+- All dashboard features work normally
+- All local ML features (anomaly detection, forecasting, failure prediction) work normally
+- AI Chat will return an error: `"AI service not configured. Set the GROQ_API_KEY environment variable."`
+
+**Getting a free Groq API key (takes ~1 minute):**
+1. Go to [console.groq.com](https://console.groq.com)
+2. Sign in with your GitHub account
+3. Click **API Keys** → **Create API Key**
+4. Copy the key and add it to your `.env` file as `GROQ_API_KEY=your_key_here`
+
+---
+
+## Quick Start (Local)
 
 ### Prerequisites
 
 - **Docker Desktop 20.10+** with Docker Compose 2.0+
-- **8GB RAM minimum** (4GB for base services, +4GB for ML/AI features)
-- **10GB disk space** (includes AI model download)
+- **4GB RAM minimum** (no local LLM is run — Groq handles AI chat externally)
+- **3GB disk space**
+- **A free Groq API key** for the AI Chat feature (see above — optional, all other features work without it)
 
-### 🚀 Basic Setup (5 minutes)
+### 1. Clone the repository
 
-1. **Clone and start services**
-   ```bash
-   git clone https://github.com/mainulhossain123/infra-autofix-agent.git
-   cd infra-autofix-agent
-   
-   # Start core services (no ML/AI)
-   docker compose up -d
-   ```
-
-2. **Access the dashboard**
-   - Open http://localhost:3000
-   - View incidents, metrics, and manual controls
-
-### 🤖 With AI/ML Features (15 minutes)
-
-1. **Start all services including AI**
-   ```bash
-   # Start with ML services (includes Ollama LLM)
-   docker compose -f docker-compose.yml -f docker-compose.ml.yml up -d
-   ```
-
-2. **Download AI model (one-time, ~2GB)**
-   ```bash
-   docker exec ar_ollama ollama pull llama3.2:3b
-   ```
-
-3. **Verify AI services**
-   ```bash
-   # Check ML health
-   curl http://localhost:5000/api/ml/health
-   
-   # Expected: {"status": "healthy", "ml_enabled": true, "ollama_connected": true}
-   ```
-
-4. **Access AI Chat Assistant**
-   - Navigate to http://localhost:3000/chat
-   - Ask questions like:
-     - "What incidents occurred in the last 24 hours?"
-     - "Analyze the most recent critical incident"
-     - "What's the current system status?"
-
-### 📊 Service Access Points
-
-| Service | URL | Purpose | Credentials |
-|---------|-----|---------|-------------|
-| **Dashboard** | http://localhost:3000 | Main UI, incidents, metrics | - |
-| **AI Chat** | http://localhost:3000/chat | Interactive AI assistant | - |
-| **API** | http://localhost:5000 | REST API endpoints | - |
-| **API Docs** | http://localhost:5000/api/docs | Interactive Swagger UI | - |
-| **Grafana** | http://localhost:3001 | Metrics dashboards | admin/admin |
-| **Prometheus** | http://localhost:9090 | Metrics storage | - |
-
-### 🔧 Troubleshooting Setup
-
-**Services not starting?**
 ```bash
-# Check service status
+git clone https://github.com/mainulhossain123/infra-autofix-agent.git
+cd infra-autofix-agent
+```
+
+### 2. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set your values. The minimum required change for AI chat is:
+
+```bash
+# Required for AI Chat Assistant
+GROQ_API_KEY=your_groq_api_key_here
+
+# Optional: change Grafana password (default is "admin")
+GRAFANA_ADMIN_PASSWORD=your_grafana_password
+```
+
+### 3. Start all services
+
+```bash
+docker compose up -d
+```
+
+### 4. Verify everything is running
+
+```bash
 docker compose ps
-
-# View logs
-docker compose logs app
-docker compose logs bot
 ```
 
-**AI Chat not responding?**
+All containers should show as `Up` or `healthy`:
+
+| Container | Expected Status |
+|-----------|----------------|
+| `ar_postgres` | healthy |
+| `ar_app` | healthy |
+| `ar_bot` | Up |
+| `ar_frontend` | healthy |
+| `ar_prometheus` | Up |
+| `ar_grafana` | Up |
+| `ar_loki` | Up |
+| `ar_promtail` | Up |
+
+### 5. Access the application
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| **Dashboard** | http://localhost:3000 | — |
+| **AI Chat** | http://localhost:3000/chat | Requires `GROQ_API_KEY` in `.env` |
+| **System Logs** | http://localhost:3000/system-logs | — |
+| **Incidents** | http://localhost:3000/incidents | — |
+| **API** | http://localhost:5000 | — |
+| **API Docs** | http://localhost:5000/api/docs | — |
+| **Grafana** | http://localhost:3001 | `admin` / value of `GRAFANA_ADMIN_PASSWORD` |
+| **Prometheus** | http://localhost:9090 | — |
+
+---
+
+## AWS Cloud Deployment
+
+The project includes full Terraform infrastructure and GitHub Actions workflows for deploying to AWS EC2 (free tier eligible).
+
+### Infrastructure
+
+- **EC2**: `t2.micro` in `ap-southeast-1` (Singapore) — AWS free tier
+- **Elastic IP**: Static public IP assigned to the instance
+- **Security Group**: Ports 22 (SSH), 3000 (dashboard), 5000 (API), 3001 (Grafana), 9090 (Prometheus)
+- **State Backend**: S3 bucket for Terraform state
+
+### Required GitHub Secrets
+
+Before deploying, add these secrets to your repository under **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+|--------|-------|
+| `AWS_ACCESS_KEY_ID` | Your AWS IAM access key |
+| `AWS_SECRET_ACCESS_KEY` | Your AWS IAM secret key |
+| `TF_VAR_key_pair_name` | EC2 key pair name in AWS |
+| `TF_VAR_groq_api_key` | Your Groq API key |
+| `TF_VAR_postgres_password` | Strong database password |
+| `TF_VAR_grafana_password` | Grafana admin password |
+| `EC2_HOST` | EC2 Elastic IP (after first Terraform run) |
+| `EC2_SSH_PRIVATE_KEY` | Full contents of your `.pem` key file |
+
+### Deploying Infrastructure (Terraform)
+
+The **"Deploy Infrastructure (Terraform)"** workflow provisions the EC2 instance, security group, and Elastic IP.
+
+```
+GitHub → Actions → "Deploy Infrastructure (Terraform)" → Run workflow → apply
+```
+
+The workflow also auto-triggers when files under `terraform/` change on `main`.
+
+To tear down all AWS resources:
+
+```
+GitHub → Actions → "Deploy Infrastructure (Terraform)" → Run workflow → destroy
+```
+
+### Deploying Application Code (Docker)
+
+The **"Deploy App to EC2"** workflow SSHs into the EC2 instance, pulls the latest code from `main`, and rebuilds all Docker containers. Trigger it manually whenever you push application changes:
+
+```
+GitHub → Actions → "Deploy App to EC2" → Run workflow
+```
+
+What it does on the server:
+1. `git pull origin main`
+2. `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans`
+3. `docker image prune -f` (reclaims disk space)
+
+> **Note:** The production override (`docker-compose.prod.yml`) sets `FLASK_ENV=production`, applies memory limits per service (app: 350m, bot: 150m, postgres: 200m, prometheus: 256m, grafana: 256m, frontend: 50m), and suppresses port-forwarding for PostgreSQL so it is only accessible internally.
+
+### Production Environment Variables on EC2
+
+On the EC2 instance, create `/home/ubuntu/infra-autofix-agent/.env` from the template:
+
 ```bash
-# Check Ollama service
-docker logs ar_ollama --tail 50
-
-# Verify model downloaded
-docker exec ar_ollama ollama list
+cp .env.production.example .env
+nano .env   # fill in all <CHANGE_ME> values
 ```
 
-**Out of memory?**
+Key values to set:
 ```bash
-# Check Docker resources
-docker stats
-
-# Increase Docker memory allocation in Docker Desktop settings (minimum 8GB)
+FLASK_ENV=production
+POSTGRES_PASSWORD=<strong_password>
+DATABASE_URL=postgresql://remediation_user:<strong_password>@postgres:5432/remediation_db
+GRAFANA_PASSWORD=<grafana_password>
+GROQ_API_KEY=<your_groq_api_key>
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
+
+---
 
 ## Architecture
 
+### Component Overview
+
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    User Interface                       │
-│  React Dashboard + AI Chat Assistant (Port 3000)        │
-└────────────┬────────────────────────────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────────────────────────────┐
-│              Application Layer (Port 5000)              │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  Flask API Server                                 │  │
-│  │  • REST Endpoints    • WebSocket Events           │  │
-│  │  • Health Checks     • Configuration              │  │
-│  └───────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  ML/AI Engine                                     │  │
-│  │  • Anomaly Detection (Isolation Forest)          │  │
-│  │  • Forecasting (Prophet)                         │  │
-│  │  • Failure Prediction (LightGBM)                 │  │
-│  │  • Root Cause Analysis (LLM via Ollama)          │  │
-│  └───────────────────────────────────────────────────┘  │
-└───┬─────────────────────┬──────────────────┬───────────┘
-    │                     │                  │
-    ▼                     ▼                  ▼
-┌──────────┐      ┌──────────────┐      ┌──────────────┐
-│PostgreSQL│      │ Ollama LLM   │      │ Remediation  │
-│ Database │      │ (Llama 3.2)  │      │     Bot      │
-│          │      │ Port 11434   │      │  Port 8000   │
-└──────────┘      └──────────────┘      └───────┬──────┘
-                                                 │
-        ┌────────────────────────────────────────┘
-        │
-        ▼
-┌─────────────────────────────────────────────────────────┐
-│              Observability Stack                        │
-│  Prometheus (9090) • Grafana (3001) • Loki (3100)       │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                       User Interface                           │
+│   React Dashboard · AI Chat · System Logs · Incidents (3000)   │
+│   nginx proxies /api/, /health, /socket.io/ → Flask            │
+└────────────────────┬───────────────────────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────────────────────────┐
+│                Application Layer (Port 5000)                   │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  Flask API Server                                        │  │
+│  │  • REST Endpoints      • WebSocket (Socket.IO) Events   │  │
+│  │  • Health Checks       • Configuration                  │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  ML Engine (runs locally — no external deps)             │  │
+│  │  • Anomaly Detection (Isolation Forest, scikit-learn)   │  │
+│  │  • Time-Series Forecasting (Facebook Prophet)           │  │
+│  │  • Failure Prediction (LightGBM)                        │  │
+│  │  • Metrics export / model management (ml_routes.py)     │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  AI Chat (external — requires internet + Groq key)       │  │
+│  │  • Calls https://api.groq.com/openai/v1/chat/completions │  │
+│  │  • Model: llama-3.3-70b-versatile                        │  │
+│  │  • Context: recent incidents + system health injected    │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└──────────┬──────────────────────┬───────────────────┬──────────┘
+           │                      │                   │
+           ▼                      ▼                   ▼
+    ┌─────────────┐      ┌──────────────────┐  ┌─────────────────┐
+    │  PostgreSQL │      │  Groq API (cloud) │  │ Remediation Bot │
+    │  Database   │      │  Llama 3.3 70B    │  │  Port 8000      │
+    └─────────────┘      └──────────────────┘  └────────┬────────┘
+                                                         │
+                          ┌──────────────────────────────┘
+                          ▼
+    ┌────────────────────────────────────────────────────────┐
+    │                  Observability Stack                   │
+    │  Prometheus (9090) · Grafana (3001) · Loki (3100)      │
+    └────────────────────────────────────────────────────────┘
 ```
+
+### What Runs Where
+
+| Component | Runs Locally? | Notes |
+|-----------|--------------|-------|
+| Flask API | ✅ Yes | Docker container `ar_app` |
+| PostgreSQL | ✅ Yes | Docker container `ar_postgres` |
+| Anomaly Detection | ✅ Yes | scikit-learn inside `ar_app` |
+| Forecasting | ✅ Yes | Prophet inside `ar_app` |
+| Failure Prediction | ✅ Yes | LightGBM inside `ar_app` |
+| Auto-Remediation Bot | ✅ Yes | Docker container `ar_bot` |
+| React Frontend / nginx | ✅ Yes | Docker container `ar_frontend` |
+| Prometheus | ✅ Yes | Docker container `ar_prometheus` |
+| Grafana | ✅ Yes | Docker container `ar_grafana` |
+| Loki / Promtail | ✅ Yes | Docker containers |
+| **AI Chat (LLM)** | ❌ No | Calls Groq API over internet — requires `GROQ_API_KEY` |
 
 ### Data Flow
 
 ```
 Metrics Collection → Feature Engineering → ML Models → Incident Detection
         ↓                                                      ↓
-   PostgreSQL ←─── Incident Created ───────────────────────────┘
+   PostgreSQL ←─── Incident Created ─────────────────────────┘
         │                  │
-        │                  ├─→ Failure Prediction
-        │                  ├─→ Time Series Forecast
-        │                  └─→ LLM Root Cause Analysis
-        │                          │
-        ↓                          ↓
-  Continuous Learning ←──── Store ML Results
-  (Auto-retraining)         Display in Dashboard
+        │                  ├─→ Failure Prediction (local LightGBM)
+        │                  ├─→ Time Series Forecast (local Prophet)
+        │                  └─→ AI Chat context (sent to Groq API)
+        │                               │
+        ↓                               ↓
+  Continuous Learning ←──── LLM Response displayed in Chat
+  (Auto-retraining)
 ```
+
+---
+
+## UI Pages
+
+| Page | Route | Description |
+|------|-------|-------------|
+| **Dashboard** | `/` | CPU/memory/error rate charts with live WebSocket updates, incident timeline |
+| **Incidents** | `/incidents` | Full incident list with filters by status and severity |
+| **System Logs** | `/system-logs` | Health banner, metric cards, incident severity summary, raw health JSON, 15s auto-refresh |
+| **AI Chat** | `/chat` | Chat with Groq Llama 3.3 70B — incident-aware contextual answers |
+| **Remediation** | `/remediation` | Remediation action history and status |
+| **Manual Control** | `/manual-control` | Trigger manual remediation actions |
+| **Configuration** | `/config` | Adjust thresholds and bot behaviour |
+
+### Notification Bell (top navbar)
+- Fetches active incidents every 15 seconds
+- Shows a red badge with the count of active incidents
+- Clicking opens a dropdown listing the most recent incidents with severity colours and links to the Incidents and System Logs pages
+
+---
 
 ## ML/AI Capabilities
 
-### Anomaly Detection
-- **Algorithm**: Isolation Forest
+### Anomaly Detection (local)
+- **Algorithm**: Isolation Forest (scikit-learn)
 - **Accuracy**: 92-95%
-- **Inference**: <10ms
-- **Features**: 100+ engineered metrics
+- **Inference latency**: <10ms
+- **Features**: 100+ engineered metrics from `metrics_history` table
 
-### Time Series Forecasting  
+### Time-Series Forecasting (local)
 - **Algorithm**: Facebook Prophet
-- **Prediction Window**: 1-24 hours ahead
-- **Use Case**: Proactive breach detection
+- **Prediction window**: 1-24 hours ahead
+- **Use case**: Proactive threshold breach detection
 
-### LLM Integration
-- **Model**: Llama 3.2 (3B parameters via Ollama)
-- **Cost**: Free (runs locally, no API keys needed)
-- **Capabilities**: 
-  - Root cause analysis with actionable recommendations
-  - Interactive chat assistant for troubleshooting
-  - Natural language incident queries
-  - Context-aware responses based on recent incidents and metrics
-
-### Failure Prediction
+### Failure Prediction (local)
 - **Algorithm**: LightGBM
-- **Prediction Window**: 1-72 hours
-- **Risk Levels**: High/Medium/Low
+- **Prediction window**: 1-72 hours
+- **Risk levels**: High / Medium / Low
 
-### Continuous Learning
-- **Auto-Retraining**: Every 24 hours
-- **Performance Tracking**: Accuracy, precision, MAE
-- **Model Versioning**: Full history in database
+### AI Chat Assistant (external — Groq API)
+- **Provider**: [Groq](https://console.groq.com) (free tier available)
+- **Model**: `llama-3.3-70b-versatile`
+- **Endpoint**: `https://api.groq.com/openai/v1/chat/completions`
+- **Context injection**: Recent incidents, current system health, and metrics are automatically included in every request
+- **Requires**: `GROQ_API_KEY` environment variable — get one free at [console.groq.com](https://console.groq.com)
+- **Capabilities**:
+  - Natural language incident querying
+  - Root cause analysis with actionable recommendations
+  - Interactive troubleshooting assistant
+
+### Continuous Learning (local)
+- **Auto-retraining**: Every 24 hours
+- **Performance tracking**: Accuracy, precision, MAE stored in database
+- **Model versioning**: Full history in `ml_models` table
+
+---
 
 ## API Reference
 
 ### Core Endpoints
 
 ```bash
-# Health check
-GET /api/health
+# Health check (returns full metrics JSON)
+GET /health
 
 # Get incidents
-GET /api/incidents?status=open&severity=high
+GET /api/incidents?status=active&severity=critical&limit=50
 
 # Trigger manual remediation
 POST /api/remediation/manual
@@ -233,10 +365,10 @@ POST /api/remediation/manual
 }
 ```
 
-### ML Endpoints
+### ML / AI Endpoints
 
 ```bash
-# AI Chat Assistant
+# AI Chat Assistant (requires GROQ_API_KEY)
 POST /api/ml/chat
 {
   "message": "What incidents occurred in the last 24 hours?",
@@ -244,78 +376,95 @@ POST /api/ml/chat
 }
 
 # Anomaly detection
-POST /api/ml/anomaly/predict
+POST /api/ml/predict/anomaly
 GET /api/ml/anomaly/status
 
-# Forecasting
+# Time-series forecast
 GET /api/ml/forecast/predict?target_metric=cpu&hours_ahead=6
-
-# LLM root cause analysis
-POST /api/ml/analyze/incident/{incident_id}
 
 # Failure prediction
 POST /api/ml/failure-prediction/predict
+
+# Metrics export (JSON or CSV)
+GET /api/ml/metrics/export?start_date=2026-01-01&format=csv
+
+# Metrics statistics
+GET /api/ml/metrics/stats
+
+# List ML models
+GET /api/ml/models
+GET /api/ml/models/<id>
+
+# Train anomaly detector
+POST /api/ml/train/anomaly-detector
+
+# Generate synthetic training data
+POST /api/ml/train/generate-synthetic
 ```
 
 **Interactive API documentation**: http://localhost:5000/api/docs
 
-## Deployment
-
-### Docker Compose (Development)
-
-```bash
-# Basic setup
-docker compose up -d
-
-# With ML features
-docker compose -f docker-compose.yml -f docker-compose.ml.yml up -d
-
-# Stop services
-docker compose down
-```
-
-### Kubernetes (Production)
-
-```bash
-# Using kubectl
-kubectl apply -k k8s/
-
-# Using Helm
-helm install infra-autofix ./helm/infra-autofix \
-  --namespace infra-autofix \
-  --create-namespace
-
-# Check status
-kubectl get pods -n infra-autofix
-```
-
-See [Kubernetes Guide](docs/kubernetes.md) for production deployment details.
+---
 
 ## Configuration
 
-Key environment variables:
+### Key Environment Variables
 
 ```bash
-# Application
-FLASK_ENV=production
-ERROR_RATE_THRESHOLD=0.2
+# ── Application ───────────────────────────────────────────────
+FLASK_ENV=development          # development | production
+APP_PORT=5000
+ML_ENABLED=true                # set false to disable all ML/AI routes
+
+# ── AI Chat (Groq — required for /chat page) ──────────────────
+GROQ_API_KEY=your_key_here     # free key at https://console.groq.com
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# ── Thresholds ────────────────────────────────────────────────
 CPU_THRESHOLD=80
+ERROR_RATE_THRESHOLD=0.2
+RESPONSE_TIME_THRESHOLD_MS=500
 
-# ML Features
-ML_ENABLED=true
-OLLAMA_HOST=http://ollama:11434
-OLLAMA_MODEL=llama3.2:3b
+# ── Remediation Bot ───────────────────────────────────────────
+BOT_POLL_SECONDS=5
+MAX_RESTARTS_PER_5MIN=3
+COOLDOWN_SECONDS=120
 
-# Database
-DATABASE_URL=postgresql://user:pass@postgres:5432/db
+# ── Database ──────────────────────────────────────────────────
+POSTGRES_USER=remediation_user
+POSTGRES_PASSWORD=remediation_pass
+POSTGRES_DB=remediation_db
+DATABASE_URL=postgresql://remediation_user:remediation_pass@postgres:5432/remediation_db
+
+# ── Grafana ───────────────────────────────────────────────────
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=admin   # change this in production!
+
+# ── Notifications (optional) ─────────────────────────────────
+SLACK_WEBHOOK_URL=             # leave empty to disable
+
+# ── Data Retention ────────────────────────────────────────────
+DATA_RETENTION_DAYS=180
+CLEANUP_INTERVAL_HOURS=24
 ```
+
+Copy `.env.example` for local use, or `.env.production.example` for production/EC2 use.
+
+---
 
 ## Monitoring
 
 ### Grafana Dashboards
 - System Overview (incidents, remediations, success rate)
-- ML Performance (accuracy, predictions, retraining)
-- Infrastructure Metrics (CPU, memory, disk)
+- ML Performance (accuracy, predictions, retraining history)
+- Infrastructure Metrics (CPU, memory, disk, request rates)
+
+**Grafana credentials**: `admin` / value of `GRAFANA_ADMIN_PASSWORD` (default: `admin` locally)
+
+To reset the Grafana password on a running instance:
+```bash
+docker exec ar_grafana grafana-cli admin reset-admin-password NewPassword123
+```
 
 ### Prometheus Alerts
 - High error rate (>5%)
@@ -323,78 +472,141 @@ DATABASE_URL=postgresql://user:pass@postgres:5432/db
 - Memory usage (>85%)
 - Incident rate spike
 
-### Logs
-Access via Loki or Grafana Explore:
+### Logs (Loki)
+Access via Grafana → Explore, using these LogQL queries:
 ```
-{container="ar_app"}         # Application logs
+{container="ar_app"}         # Flask application logs
 {container="ar_bot"}         # Remediation bot logs
-{container="ar_frontend"}    # UI logs
+{container="ar_frontend"}    # nginx / frontend logs
 ```
+
+---
+
+## Troubleshooting
+
+**Services not starting?**
+```bash
+docker compose ps              # check status
+docker compose logs app        # Flask logs
+docker compose logs bot        # bot logs
+docker compose logs frontend   # nginx logs
+```
+
+**Dashboard shows "Failed to load dashboard data"?**
+```bash
+# Check Flask is healthy
+curl http://localhost:5000/health
+
+# Check nginx is proxying correctly
+docker compose logs frontend
+```
+
+**AI Chat returns "AI service not configured"?**
+- You need to set `GROQ_API_KEY` in your `.env` file
+- Get a free key at [console.groq.com](https://console.groq.com)
+- Restart the app container after adding the key: `docker compose restart app`
+
+**WebSocket not connecting (live metrics not updating)?**
+- The frontend connects Socket.IO via nginx to `/socket.io/` which is proxied to Flask
+- Check: `docker compose logs frontend | grep socket`
+- Ensure `ar_app` is healthy: `docker compose ps`
+
+**Grafana password forgotten (on EC2)?**
+```bash
+# SSH into EC2 then:
+grep GRAFANA_PASSWORD /home/ubuntu/infra-autofix-agent/.env
+# or reset it:
+docker exec ar_grafana grafana-cli admin reset-admin-password NewPassword123
+```
+
+**Out of memory on Docker Desktop (local)?**
+```bash
+docker stats    # check per-container usage
+# Increase Docker Desktop memory limit in Settings → Resources (4GB minimum recommended)
+```
+
+---
 
 ## Development
 
-### Local Development Setup
+### Running Tests
 
 ```bash
-# Backend
+# Backend tests
+cd tests
+pytest test_app.py -v
+pytest test_bot.py -v
+
+# Or from project root
+docker compose exec app pytest tests/ --cov
+```
+
+### Running Without Docker
+
+```bash
+# Backend (requires a running PostgreSQL instance)
 cd app
 python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+source venv/bin/activate       # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+cp ../.env.example .env        # then edit .env
 python app.py
 
-# Frontend
+# Frontend (Vite dev server — proxies /api/ and /health to http://app:5000)
 cd frontend
 npm install
 npm run dev
+# Access at http://localhost:3000
 
 # Bot
-cd bot  
+cd bot
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python bot.py
 ```
 
-### Running Tests
+> **Note:** The Vite dev server (`vite.config.js`) already proxies `/api/` and `/health` to `http://app:5000`, so local frontend development works correctly when the backend container is running.
 
-```bash
-# Backend tests
-cd app
-pytest tests/ --cov
-
-# Frontend tests
-cd frontend
-npm test
-```
+---
 
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome!
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
+
+---
 
 ## Documentation
 
-- [Quick Start Guide](docs/quick-start.md) - Detailed setup instructions
-- [API Documentation](docs/API.md) - Complete API reference
-- [Kubernetes Guide](docs/kubernetes.md) - Production deployment
-- [Operations Guide](docs/operations.md) - Configuration and troubleshooting
+- [API Documentation](docs/API.md) — Complete API reference
+- [Operations Guide](docs/operations.md) — Configuration and troubleshooting
+- [Docker Guide](docs/docker.md) — Docker Compose details
+
+---
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details
+MIT License — see [LICENSE](LICENSE) for details.
 
-## Acknowledgments
+---
 
-- Built with Flask, React, PostgreSQL
-- ML powered by scikit-learn, LightGBM, Prophet
-- LLM integration via Ollama (Llama 3.2)
-- Monitoring via Prometheus, Grafana, Loki
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, Vite, Tailwind CSS, Socket.IO client |
+| Backend | Python 3.11, Flask, Flask-SocketIO, SQLAlchemy |
+| Database | PostgreSQL 15 |
+| Local ML | scikit-learn (Isolation Forest), LightGBM, Facebook Prophet |
+| AI Chat | Groq API — `llama-3.3-70b-versatile` (external, free tier) |
+| Observability | Prometheus, Grafana, Loki, Promtail |
+| Infrastructure | Docker Compose, Terraform (AWS EC2 t2.micro), GitHub Actions |
 
 ---
 
