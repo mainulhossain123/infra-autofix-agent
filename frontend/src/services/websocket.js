@@ -12,7 +12,7 @@ class WebSocketService {
     };
   }
 
-  connect(url = 'http://localhost:5000') {
+  connect(url = window.location.origin) {
     if (this.socket?.connected) {
       console.log('WebSocket already connected');
       return;

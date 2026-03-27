@@ -6,6 +6,7 @@ import RemediationPage from './pages/RemediationPage';
 import ManualControlPage from './pages/ManualControlPage';
 import ConfigPage from './pages/ConfigPage';
 import ChatPage from './pages/ChatPage';
+import SystemLogsPage from './pages/SystemLogsPage';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="manual" element={<ManualControlPage />} />
           <Route path="config" element={<ConfigPage />} />
           <Route path="chat" element={<ChatPage />} />
+          <Route path="system-logs" element={<SystemLogsPage />} />
         </Route>
       </Routes>
     </Router>

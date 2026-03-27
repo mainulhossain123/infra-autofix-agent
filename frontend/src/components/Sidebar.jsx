@@ -6,6 +6,7 @@ import {
   PlayCircle, 
   Settings,
   MessageSquare,
+  ScrollText,
   X
 } from 'lucide-react';
 
@@ -15,6 +16,7 @@ const navigation = [
   { name: 'Remediation History', to: '/remediation', icon: History },
   { name: 'Manual Control', to: '/manual', icon: PlayCircle },
   { name: 'AI Assistant', to: '/chat', icon: MessageSquare },
+  { name: 'System Logs', to: '/system-logs', icon: ScrollText },
   { name: 'Configuration', to: '/config', icon: Settings },
 ];
 

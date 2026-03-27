@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 // Create axios instance with base configuration
+// Empty baseURL = relative to current origin, so nginx proxying works in production.
+// Override with VITE_API_URL env var for non-Docker local dev (e.g. VITE_API_URL=http://localhost:5000).
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  baseURL: import.meta.env.VITE_API_URL || '',
   timeout: 90000,  // 90 seconds for AI responses
   headers: {
     'Content-Type': 'application/json',

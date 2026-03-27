@@ -103,7 +103,7 @@ const ChatPage = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold text-white">AI Assistant</h1>
-            <p className="text-sm text-gray-400">Powered by Llama 3.2</p>
+            <p className="text-sm text-gray-400">Powered by Groq (Llama 3.3 70B)</p>
           </div>
         </div>
       </div>

@@ -49,8 +49,9 @@ export default function Dashboard() {
     // Initial fetch
     fetchData();
     
-    // Connect to WebSocket
-    websocketService.connect('http://localhost:5000');
+    // Connect to WebSocket — uses window.location.origin by default so it
+    // works both locally (via nginx on port 3000) and on the EC2 server.
+    websocketService.connect();
     
     // WebSocket event handlers
     const unsubMetrics = websocketService.onMetrics((data) => {
