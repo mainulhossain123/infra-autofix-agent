@@ -1,0 +1,61 @@
+# Production overrides for AWS EC2 deployment
+# Extends the base compose files with production-safe settings.
+#
+# Usage (full stack with AI):
+#   docker compose -f docker-compose.yml -f docker-compose.ml.yml -f docker-compose.prod.yml up -d --build
+#
+# Usage (core stack without AI/Ollama):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+version: "3.8"
+
+services:
+
+  # --- Flask Backend ---
+  app:
+    environment:
+      # Override dev mode → production mode (disables debug, enables optimizations)
+      - FLASK_ENV=production
+      # Groq API key for AI chat (replaces Ollama — works on free-tier t2.micro)
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
+    mem_limit: 350m
+    restart: unless-stopped
+
+  # --- Auto-Remediation Bot ---
+  bot:
+    mem_limit: 150m
+    restart: unless-stopped
+
+  # --- React Frontend ---
+  frontend:
+    mem_limit: 50m
+    restart: unless-stopped
+
+  # --- PostgreSQL ---
+  postgres:
+    restart: unless-stopped
+    mem_limit: 200m
+    # NOTE: Port 5432 is intentionally NOT exposed to the host in production.
+    # The app and bot connect to it via the internal Docker network.
+    ports: []
+
+  # --- Prometheus ---
+  prometheus:
+    mem_limit: 256m
+    restart: unless-stopped
+
+  # --- Grafana ---
+  grafana:
+    mem_limit: 256m
+    restart: unless-stopped
+
+  # --- Loki ---
+  loki:
+    mem_limit: 128m
+    restart: unless-stopped
+
+  # --- Promtail ---
+  promtail:
+    mem_limit: 64m
+    restart: unless-stopped

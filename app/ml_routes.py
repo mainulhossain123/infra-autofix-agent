@@ -1667,19 +1667,15 @@ def chat_with_ai():
     """
     import os
     import requests
-    
+
     try:
         data = request.get_json()
         user_message = data.get('message', '').strip()
         incident_id = data.get('incident_id')
         include_context = data.get('include_context', True)
-        
+
         if not user_message:
             return jsonify({'error': 'Message is required'}), 400
-        
-        # Get Ollama configuration
-        ollama_host = os.getenv('OLLAMA_HOST', 'http://ollama:11434')
-        ollama_model = os.getenv('OLLAMA_MODEL', 'llama3.2:3b')
         
         # Build context from database
         context = {}
@@ -1803,25 +1799,40 @@ USER: {user_message}
 
 Answer concisely based on the context. Compare timestamps with current time for time-based questions."""
         
-        # Call Ollama API
+        # Call Groq API (OpenAI-compatible, free tier)
         try:
-            ollama_url = f"{ollama_host}/api/generate"
-            ollama_payload = {
-                "model": ollama_model,
-                "prompt": full_prompt,
-                "stream": False
+            groq_api_key = os.getenv('GROQ_API_KEY', '')
+            if not groq_api_key:
+                return jsonify({
+                    'error': 'AI service not configured. Set the GROQ_API_KEY environment variable.',
+                    'details': 'Get a free key at https://console.groq.com'
+                }), 503
+
+            groq_model = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
+            groq_url = "https://api.groq.com/openai/v1/chat/completions"
+            groq_payload = {
+                "model": groq_model,
+                "messages": [
+                    {"role": "user", "content": full_prompt}
+                ],
+                "max_tokens": 512,
+                "temperature": 0.3
             }
-            
-            logger.info(f"Calling Ollama at {ollama_url} with model {ollama_model}")
-            ollama_response = requests.post(
-                ollama_url, 
-                json=ollama_payload,
-                timeout=90
+
+            logger.info(f"Calling Groq API with model {groq_model}")
+            groq_response = requests.post(
+                groq_url,
+                json=groq_payload,
+                headers={
+                    "Authorization": f"Bearer {groq_api_key}",
+                    "Content-Type": "application/json"
+                },
+                timeout=30
             )
-            ollama_response.raise_for_status()
-            
-            ai_response = ollama_response.json().get('response', 'No response from AI')
-            
+            groq_response.raise_for_status()
+
+            ai_response = groq_response.json()['choices'][0]['message']['content']
+
             return jsonify({
                 'response': ai_response,
                 'context_used': {
@@ -1831,9 +1842,9 @@ Answer concisely based on the context. Compare timestamps with current time for 
                 },
                 'timestamp': datetime.utcnow().isoformat()
             })
-            
+
         except requests.exceptions.RequestException as e:
-            logger.error(f"Ollama API error: {e}")
+            logger.error(f"Groq API error: {e}")
             return jsonify({
                 'error': 'AI service temporarily unavailable',
                 'details': str(e)
