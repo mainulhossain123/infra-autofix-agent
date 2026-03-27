@@ -9,10 +9,6 @@ jobs:
     name: Deploy to EC2
     runs-on: ubuntu-latest
 
-    # Only run if the EC2 host secret is configured
-    # (won't fail on forks or before infra is provisioned)
-    if: ${{ vars.EC2_HOST != '' || secrets.EC2_HOST != '' }}
-
     steps:
       # ── 1. SSH into EC2 and redeploy ─────────────────────────────────────────
       - name: Deploy via SSH
