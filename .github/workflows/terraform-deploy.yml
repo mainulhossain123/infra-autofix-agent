@@ -54,6 +54,8 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
+          # Disable wrapper so $(terraform output -raw ...) returns clean values
+          terraform_wrapper: false
 
       # ── 4. Init — connects to S3 backend for remote state ───────────────────
       - name: Terraform Init

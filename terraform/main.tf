@@ -23,12 +23,15 @@ data "aws_key_pair" "main" {
   key_name = var.key_pair_name
 }
 
+# ── Default VPC — used to scope the security group lookup unambiguously ──────
+data "aws_vpc" "default" {
+  default = true
+}
+
 # ── Reference existing Security Group (you created this in Step 3) ───────────
 data "aws_security_group" "main" {
-  filter {
-    name   = "group-name"
-    values = [var.security_group_name]
-  }
+  name   = var.security_group_name
+  vpc_id = data.aws_vpc.default.id
 }
 
 # ── Latest Ubuntu 22.04 LTS AMI (Canonical official) ─────────────────────────
