@@ -1,0 +1,16 @@
+# Local Terraform working files — never commit these
+.terraform/
+.terraform.lock.hcl
+
+# State files contain plaintext secrets — never commit
+terraform.tfstate
+terraform.tfstate.backup
+
+# Plan files
+*.tfplan
+tfplan
+
+# Variable files with actual values — never commit
+*.tfvars
+*.tfvars.json
+!*.tfvars.example

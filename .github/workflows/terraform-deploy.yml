@@ -1,0 +1,140 @@
+name: Deploy Infrastructure (Terraform)
+
+on:
+  # Manual trigger — click "Run workflow" in GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to run'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply    # provision / update infrastructure
+          - destroy  # tear everything down (stop paying / clean up)
+
+  # Also auto-run when terraform files change on main
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform-deploy.yml'
+
+env:
+  TF_VERSION: "1.7.5"
+  AWS_REGION: "ap-southeast-1"
+  WORKING_DIR: "./terraform"
+
+jobs:
+  terraform:
+    name: Terraform ${{ github.event.inputs.action || 'apply' }}
+    runs-on: ubuntu-latest
+
+    # Show the Elastic IP and URLs in the GitHub Actions summary
+    outputs:
+      elastic_ip: ${{ steps.outputs.outputs.elastic_ip }}
+      dashboard_url: ${{ steps.outputs.outputs.dashboard_url }}
+
+    steps:
+      # ── 1. Checkout code ────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Configure AWS credentials (from GitHub Secrets) ─────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      # ── 3. Install Terraform ─────────────────────────────────────────────────
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # ── 4. Init — connects to S3 backend for remote state ───────────────────
+      - name: Terraform Init
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=infra-autofix-agent/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -input=false
+
+      # ── 5. Validate — catches config errors before touching AWS ─────────────
+      - name: Terraform Validate
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform validate
+
+      # ── 6. Plan — show what will change (always runs) ───────────────────────
+      - name: Terraform Plan
+        working-directory: ${{ env.WORKING_DIR }}
+        env:
+          TF_VAR_groq_api_key:      ${{ secrets.GROQ_API_KEY }}
+          TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
+          TF_VAR_grafana_password:  ${{ secrets.GRAFANA_PASSWORD }}
+        run: |
+          terraform plan \
+            -out=tfplan \
+            -input=false
+
+      # ── 7. Apply or Destroy ──────────────────────────────────────────────────
+      - name: Terraform Apply
+        if: ${{ (github.event.inputs.action || 'apply') == 'apply' }}
+        working-directory: ${{ env.WORKING_DIR }}
+        env:
+          TF_VAR_groq_api_key:      ${{ secrets.GROQ_API_KEY }}
+          TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
+          TF_VAR_grafana_password:  ${{ secrets.GRAFANA_PASSWORD }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: ${{ github.event.inputs.action == 'destroy' }}
+        working-directory: ${{ env.WORKING_DIR }}
+        env:
+          TF_VAR_groq_api_key:      ${{ secrets.GROQ_API_KEY }}
+          TF_VAR_postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
+          TF_VAR_grafana_password:  ${{ secrets.GRAFANA_PASSWORD }}
+        run: terraform destroy -auto-approve
+
+      # ── 8. Print outputs to the Actions summary ──────────────────────────────
+      - name: Show Terraform Outputs
+        id: outputs
+        if: ${{ (github.event.inputs.action || 'apply') == 'apply' }}
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          ELASTIC_IP=$(terraform output -raw elastic_ip 2>/dev/null || echo "")
+          DASHBOARD=$(terraform output -raw dashboard_url 2>/dev/null || echo "")
+          SSH_CMD=$(terraform output -raw ssh_command 2>/dev/null || echo "")
+          SETUP_LOG=$(terraform output -raw setup_log_command 2>/dev/null || echo "")
+
+          echo "elastic_ip=$ELASTIC_IP"       >> "$GITHUB_OUTPUT"
+          echo "dashboard_url=$DASHBOARD"     >> "$GITHUB_OUTPUT"
+
+          # Write a nice summary visible in the Actions UI
+          cat >> "$GITHUB_STEP_SUMMARY" << SUMMARY
+          ## Deployment Complete
+
+          | Service       | URL |
+          |---------------|-----|
+          | **Dashboard** | $DASHBOARD |
+          | **API**       | http://$ELASTIC_IP:5000 |
+          | **Grafana**   | http://$ELASTIC_IP:3001 |
+          | **Prometheus**| http://$ELASTIC_IP:9090 |
+
+          > **Note**: The server is provisioned but Docker images are still building (~10 min).
+          > Run the SSH command below to watch progress.
+
+          \`\`\`
+          # Watch setup progress:
+          $SETUP_LOG
+
+          # Or SSH directly:
+          $SSH_CMD
+          \`\`\`
+          SUMMARY
