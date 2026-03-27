@@ -10,8 +10,9 @@
 #   ${postgres_password}  — generated database password
 #   ${grafana_password}   — generated Grafana password
 #
-# NOTE: All other $ signs (bash variables, subshells) are left unchanged
-#       by Terraform. Only ${...} matching a declared variable is replaced.
+# NOTE: Terraform replaces only the three declared variables above.
+#       All other shell $ signs (e.g. $ARCH, $VERSION_CODENAME) are
+#       passed through unchanged to bash on the instance.
 # =============================================================================
 
 set -e
