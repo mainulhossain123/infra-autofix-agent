@@ -154,14 +154,6 @@ resource "aws_instance" "main" {
   }
 }
 
-# ── Elastic IP — stable public address that survives stop/start cycles ────────
-resource "aws_eip" "main" {
-  instance   = aws_instance.main.id
-  domain     = "vpc"
-  depends_on = [aws_instance.main]
-
-  tags = {
-    Name      = "infra-autofix-agent-eip"
-    ManagedBy = "terraform"
-  }
-}
+# NOTE: No Elastic IP is provisioned — they cost ~$3.60/month under AWS's Feb 2024
+# IPv4 pricing policy. DuckDNS (infra-autofix.duckdns.org) keeps a stable hostname
+# pointing to the EC2's dynamic public IP via a cron job installed by the deploy workflow.

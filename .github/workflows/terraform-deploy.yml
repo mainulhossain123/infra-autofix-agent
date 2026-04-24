@@ -31,9 +31,8 @@ jobs:
     name: Terraform ${{ github.event.inputs.action || 'apply' }}
     runs-on: ubuntu-latest
 
-    # Show the Elastic IP and URLs in the GitHub Actions summary
+    # Show the dashboard URL in the GitHub Actions summary
     outputs:
-      elastic_ip: ${{ steps.outputs.outputs.elastic_ip }}
       dashboard_url: ${{ steps.outputs.outputs.dashboard_url }}
 
     steps:
@@ -110,12 +109,11 @@ jobs:
         if: ${{ (github.event.inputs.action || 'apply') == 'apply' }}
         working-directory: ${{ env.WORKING_DIR }}
         run: |
-          ELASTIC_IP=$(terraform output -raw elastic_ip 2>/dev/null || echo "")
+          INSTANCE_IP=$(terraform output -raw instance_public_ip 2>/dev/null || echo "")
           DASHBOARD=$(terraform output -raw dashboard_url 2>/dev/null || echo "")
           SSH_CMD=$(terraform output -raw ssh_command 2>/dev/null || echo "")
           SETUP_LOG=$(terraform output -raw setup_log_command 2>/dev/null || echo "")
 
-          echo "elastic_ip=$ELASTIC_IP"       >> "$GITHUB_OUTPUT"
           echo "dashboard_url=$DASHBOARD"     >> "$GITHUB_OUTPUT"
 
           # Write a nice summary visible in the Actions UI
@@ -125,9 +123,9 @@ jobs:
           | Service       | URL |
           |---------------|-----|
           | **Dashboard** | $DASHBOARD |
-          | **API**       | http://$ELASTIC_IP:5000 |
-          | **Grafana**   | http://$ELASTIC_IP:3001 |
-          | **Prometheus**| http://$ELASTIC_IP:9090 |
+          | **API**       | http://infra-autofix.duckdns.org:5000 |
+          | **Grafana**   | http://infra-autofix.duckdns.org:3001 |
+          | **Prometheus**| http://infra-autofix.duckdns.org:9090 |
 
           > **Note**: The server is provisioned but Docker images are still building (~10 min).
           > Run the SSH command below to watch progress.

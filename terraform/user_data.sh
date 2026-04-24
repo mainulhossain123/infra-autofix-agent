@@ -130,10 +130,14 @@ sudo -u ubuntu docker compose \
 echo ""
 echo "=== Bootstrap COMPLETE at $(date) ==="
 PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-echo "Dashboard  -> http://$PUBLIC_IP:3000"
-echo "API        -> http://$PUBLIC_IP:5000"
-echo "Grafana    -> http://$PUBLIC_IP:3001"
-echo "Prometheus -> http://$PUBLIC_IP:9090"
+echo "Instance public IP : $PUBLIC_IP  (dynamic - changes on stop/start)"
+echo "Dashboard  -> http://infra-autofix.duckdns.org  (DuckDNS cron keeps this updated)"
+echo "API        -> http://infra-autofix.duckdns.org:5000"
+echo "Grafana    -> http://infra-autofix.duckdns.org:3001"
+echo "Prometheus -> http://infra-autofix.duckdns.org:9090"
+echo ""
+echo "NOTE: No Elastic IP is used. DuckDNS auto-updates the hostname every 5 min via cron."
+echo "      Run 'crontab -l' after the first deploy to confirm the cron job is installed."
 
 # Write a completion marker so you can check from outside:
 #   curl http://<IP>:5000/health
