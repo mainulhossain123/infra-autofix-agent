@@ -41,7 +41,7 @@ An open-source AI-powered platform for automated infrastructure monitoring, inci
 
 ---
 
-## Groq API Key Requirement
+## Groq API Key Requirements
 
 The AI Chat Assistant calls the [Groq API](https://console.groq.com) to run `llama-3.3-70b-versatile`. This is a **free external API** — Groq offers a generous free tier with no credit card required.
 
