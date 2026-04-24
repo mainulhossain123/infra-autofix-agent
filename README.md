@@ -137,7 +137,8 @@ The project includes full Terraform infrastructure and GitHub Actions workflows 
 ### Infrastructure
 
 - **EC2**: `t2.micro` in `ap-southeast-1` (Singapore) — AWS free tier
-- **Elastic IP**: Static public IP assigned to the instance
+- **Public IP**: Assigned dynamically — no Elastic IP (avoids ~$3.60/month charge under AWS's Feb 2024 IPv4 pricing policy)
+- **Stable URL**: [DuckDNS](https://www.duckdns.org) free subdomain (e.g. `infra-autofix.duckdns.org`) — auto-updated by a cron job on EC2 whenever the IP changes after a stop/start
 - **Security Group**: Ports 22 (SSH), 3000 (dashboard), 5000 (API), 3001 (Grafana), 9090 (Prometheus)
 - **State Backend**: S3 bucket for Terraform state
 
@@ -153,8 +154,47 @@ Before deploying, add these secrets to your repository under **Settings → Secr
 | `TF_VAR_groq_api_key` | Your Groq API key |
 | `TF_VAR_postgres_password` | Strong database password |
 | `TF_VAR_grafana_password` | Grafana admin password |
-| `EC2_HOST` | EC2 Elastic IP (after first Terraform run) |
+| `EC2_HOST` | Your DuckDNS hostname (e.g. `infra-autofix.duckdns.org`) |
 | `EC2_SSH_PRIVATE_KEY` | Full contents of your `.pem` key file |
+
+### Free Domain Setup (DuckDNS)
+
+Because no Elastic IP is used, the EC2 instance gets a new public IP on every stop/start. DuckDNS keeps a stable hostname pointing to the current IP automatically.
+
+**One-time setup (takes ~3 minutes):**
+
+1. Go to [duckdns.org](https://www.duckdns.org) and log in with GitHub
+2. Create a subdomain — e.g. `infra-autofix` → gives you `infra-autofix.duckdns.org`
+3. Note your **token** from the top of the DuckDNS dashboard
+4. SSH into your EC2 instance and install the cron job:
+
+```bash
+# Make the script executable
+chmod +x /home/ubuntu/infra-autofix-agent/scripts/update_duckdns.sh
+
+# Test it first
+DUCKDNS_DOMAIN=your-subdomain DUCKDNS_TOKEN=your-token \
+  /home/ubuntu/infra-autofix-agent/scripts/update_duckdns.sh
+# Should print: OK — your-subdomain.duckdns.org updated successfully.
+
+# Add the cron job (runs every 5 minutes)
+crontab -e
+```
+
+Add this line to crontab (replace `your-subdomain` and `your-token`):
+```
+*/5 * * * * DUCKDNS_DOMAIN=your-subdomain DUCKDNS_TOKEN=your-token /home/ubuntu/infra-autofix-agent/scripts/update_duckdns.sh >> /home/ubuntu/duckdns.log 2>&1
+```
+
+5. Update the `EC2_HOST` GitHub Secret to your DuckDNS hostname:
+   - **Settings → Secrets and variables → Actions → `EC2_HOST`**
+   - Set value to: `infra-autofix.duckdns.org` (your actual subdomain)
+
+**After this is set up, access the app at:** `http://infra-autofix.duckdns.org:3000`
+
+> **Note on Elastic IP:** If you already have an Elastic IP allocated, release it in the AWS Console → EC2 → Elastic IPs → Disassociate → Release. This stops the ~$3.60/month charge immediately.
+
+---
 
 ### Deploying Infrastructure (Terraform)
 
