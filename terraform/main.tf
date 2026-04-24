@@ -32,10 +32,10 @@ data "aws_vpc" "default" {
 # Ports exposed to the internet:
 #   22   — SSH (admin access)
 #   3000 — React dashboard
-#   80  — React dashboard (standard HTTP — no port number needed in URL)
-#   5000 — Flask API
-#   3001 — Grafana
-#   9090 — Prometheus
+#   80  - React dashboard (standard HTTP - no port number needed in URL)
+#   5000 - Flask API
+#   3001 - Grafana
+#   9090 - Prometheus
 # Internal-only (not exposed): 5432 postgres, 3100 loki, 8000 bot metrics
 resource "aws_security_group" "main" {
   name        = "infra-autofix-sg"
@@ -51,7 +51,7 @@ resource "aws_security_group" "main" {
   }
 
   ingress {
-    description = "HTTP — React dashboard"
+    description = "HTTP - React dashboard"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -59,7 +59,7 @@ resource "aws_security_group" "main" {
   }
 
   ingress {
-    description = "React dashboard (legacy port — kept for local dev compatibility)"
+    description = "React dashboard (legacy port - local dev)"
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
