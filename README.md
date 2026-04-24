@@ -154,8 +154,10 @@ Before deploying, add these secrets to your repository under **Settings → Secr
 | `TF_VAR_groq_api_key` | Your Groq API key |
 | `TF_VAR_postgres_password` | Strong database password |
 | `TF_VAR_grafana_password` | Grafana admin password |
-| `EC2_HOST` | Your DuckDNS hostname (e.g. `infra-autofix.duckdns.org`) |
+| `EC2_HOST` | Your DuckDNS hostname: `infra-autofix.duckdns.org` |
 | `EC2_SSH_PRIVATE_KEY` | Full contents of your `.pem` key file |
+| `DUCKDNS_DOMAIN` | `infra-autofix` (just the subdomain, not the full hostname) |
+| `DUCKDNS_TOKEN` | Your DuckDNS token (from duckdns.org dashboard) |
 
 ### Free Domain Setup (DuckDNS)
 
@@ -191,6 +193,8 @@ Add this line to crontab (replace `your-subdomain` and `your-token`):
    - Set value to: `infra-autofix.duckdns.org` (your actual subdomain)
 
 **After this is set up, access the app at:** `http://infra-autofix.duckdns.org:3000`
+
+> **The DuckDNS cron job is also automatically installed/updated every time you run the "Deploy App to EC2" GitHub Actions workflow** — so you don't need to SSH in to set it up manually. Just add `DUCKDNS_DOMAIN` and `DUCKDNS_TOKEN` as GitHub Secrets and the workflow handles it.
 
 > **Note on Elastic IP:** If you already have an Elastic IP allocated, release it in the AWS Console → EC2 → Elastic IPs → Disassociate → Release. This stops the ~$3.60/month charge immediately.
 
