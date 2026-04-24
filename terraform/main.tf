@@ -32,6 +32,7 @@ data "aws_vpc" "default" {
 # Ports exposed to the internet:
 #   22   — SSH (admin access)
 #   3000 — React dashboard
+#   80  — React dashboard (standard HTTP — no port number needed in URL)
 #   5000 — Flask API
 #   3001 — Grafana
 #   9090 — Prometheus
@@ -50,7 +51,15 @@ resource "aws_security_group" "main" {
   }
 
   ingress {
-    description = "React dashboard"
+    description = "HTTP — React dashboard"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "React dashboard (legacy port — kept for local dev compatibility)"
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"

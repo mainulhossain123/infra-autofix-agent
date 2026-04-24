@@ -29,6 +29,8 @@ services:
 
   # --- React Frontend ---
   frontend:
+    ports:
+      - "80:80"   # Serve on standard HTTP port — no :3000 needed in the URL
     mem_limit: 50m
     restart: unless-stopped
 
